@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Maine Lake Guardian",
+  "description": "An interactive platform for monitoring and understanding the health of lakes within a 50-mile radius of Norway, Maine, featuring real-time analysis and environmental insights.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
