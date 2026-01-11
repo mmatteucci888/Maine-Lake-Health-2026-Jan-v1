@@ -7,14 +7,15 @@ interface HealthChartProps {
   data: LakeData[];
   metric: 'lastSecchiDiskReading' | 'phosphorusLevel' | 'chlorophyllLevel';
   title: string;
+  uploadedIds?: string[];
 }
 
-const HealthChart: React.FC<HealthChartProps> = ({ data, metric, title }) => {
+const HealthChart: React.FC<HealthChartProps> = ({ data, metric, title, uploadedIds = [] }) => {
   return (
     <div className="h-64 w-full">
       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 text-center">{title}</h4>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data.slice(0, 12)} margin={{ top: 0, right: 10, left: -20, bottom: 20 }}>
+        <BarChart data={data.slice(0, 15)} margin={{ top: 0, right: 10, left: -20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.3} />
           <XAxis 
             dataKey="name" 
@@ -31,17 +32,31 @@ const HealthChart: React.FC<HealthChartProps> = ({ data, metric, title }) => {
           />
           <Tooltip 
             cursor={{fill: 'rgba(255,255,255,0.05)'}}
-            contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}
+            contentStyle={{ 
+              backgroundColor: '#0f172a', 
+              borderRadius: '12px', 
+              border: '1px solid #334155', 
+              color: '#fff', 
+              fontSize: '10px', 
+              fontWeight: 'bold' 
+            }}
             itemStyle={{ color: '#60a5fa' }}
           />
-          <Bar dataKey={metric} radius={[4, 4, 0, 0]} barSize={24}>
-            {data.slice(0, 12).map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={metric === 'phosphorusLevel' ? '#f43f5e' : '#3b82f6'} 
-                fillOpacity={0.8} 
-              />
-            ))}
+          <Bar dataKey={metric} radius={[4, 4, 0, 0]} barSize={20}>
+            {data.slice(0, 15).map((entry, index) => {
+              const isUploaded = uploadedIds.includes(entry.id);
+              // Gold for user-uploaded data, Blue/Rose for registry data
+              const color = isUploaded ? '#fbbf24' : (metric === 'phosphorusLevel' ? '#f43f5e' : '#3b82f6');
+              return (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={color} 
+                  fillOpacity={isUploaded ? 1 : 0.6}
+                  stroke={isUploaded ? '#fff' : 'none'}
+                  strokeWidth={isUploaded ? 1 : 0}
+                />
+              );
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

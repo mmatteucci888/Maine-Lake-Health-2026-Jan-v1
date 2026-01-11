@@ -1,6 +1,5 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { LAKES_DATA, TARGET_ZIP } from "../constants";
 
 const API_KEY = process.env.API_KEY;
 
@@ -8,13 +7,20 @@ export const getLakeHealthInsights = async (prompt: string) => {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   const systemInstruction = `
-    You are the Maine Lake Intelligence Agent. You have access to the health records of ALL Maine lakes.
-    Your job is twofold:
-    1. Answer questions using Google Search grounding for latest Secchi depth and phosphorus data.
-    2. Whenever a user mentions a specific Maine lake, ALWAYS try to extract its current health metrics and coordinates.
+    You are the Maine Lake Intelligence Agent. You analyze ecological data for Maine lakes.
     
-    Coordinates must be precise (lat/lng) for the center of the lake basin in Maine.
-    Water Quality must be one of: Excellent, Good, Fair, Poor.
+    TASK:
+    1. Answer user questions about Maine lakes using Google Search grounding.
+    2. If the user asks about a specific lake, ALWAYS attempt to find its:
+       - Precise coordinates (lat/lng)
+       - Town name
+       - Recent Secchi Disk Reading (clarity in meters)
+       - Phosphorus level (in ppb)
+       - General water quality status (Excellent, Good, Fair, Poor)
+    
+    OUTPUT STRUCTURE:
+    You must return a JSON object. The 'discoveredLake' field is CRITICAL for updating the dashboard.
+    If no specific lake is identified, set 'discoveredLake' to null.
   `;
 
   try {
@@ -28,9 +34,10 @@ export const getLakeHealthInsights = async (prompt: string) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            answer: { type: Type.STRING, description: "Detailed scientific answer to the user's question." },
+            answer: { type: Type.STRING, description: "Detailed scientific answer or commentary about the lake's health." },
             discoveredLake: {
               type: Type.OBJECT,
+              nullable: true,
               properties: {
                 id: { type: Type.STRING },
                 name: { type: Type.STRING },
@@ -41,7 +48,8 @@ export const getLakeHealthInsights = async (prompt: string) => {
                 secchi: { type: Type.NUMBER },
                 phosphorus: { type: Type.NUMBER },
                 status: { type: Type.STRING }
-              }
+              },
+              required: ["id", "name", "town", "lat", "lng", "quality", "secchi", "phosphorus"]
             }
           }
         }
@@ -62,7 +70,7 @@ export const getLakeHealthInsights = async (prompt: string) => {
   } catch (error) {
     console.error("Gemini API Error:", error);
     return {
-      text: "I'm having trouble retrieving real-time Maine lake data. Please try again.",
+      text: "I'm having trouble analyzing the data for that lake right now. Please try again.",
       discoveredLake: null,
       sources: []
     };

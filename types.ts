@@ -11,6 +11,11 @@ export interface LakeData {
   chlorophyllLevel: number; // ppb
   invasiveSpeciesStatus: 'None detected' | 'Detected' | 'Under Management';
   lastUpdated: string;
+  historicalData?: Array<{
+    year: number | string;
+    secchi: number;
+    phosphorus: number;
+  }>;
 }
 
 export interface ChatMessage {
