@@ -80,22 +80,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar relative">
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Scanning Radius</span>
-              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">{searchRadius}mi</span>
-            </div>
-            <input 
-              type="range" 
-              min="10" 
-              max="500" 
-              step="10" 
-              value={searchRadius} 
-              onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-          </div>
-
           <nav className="space-y-1">
             <button 
               onClick={() => setView('map')}
@@ -166,30 +150,32 @@ const App: React.FC = () => {
           {view === 'dashboard' ? (
             <div className="p-8 lg:p-12 space-y-12">
                {selectedLake && (
-                 <div className="animate-fade-in space-y-12">
-                   <div className="flex flex-col lg:flex-row gap-8 items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-4">
-                           <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-[0.2em]">Focus Observation</span>
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{selectedLake.town}, ME</span>
-                        </div>
-                        <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-6">
-                          {selectedLake.name}
-                        </h1>
-                        <div className="flex gap-2">
-                          <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Node ID: {selectedLake.id}</span>
-                          <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Status: Verified</span>
-                        </div>
+                 <div className="animate-fade-in space-y-12 max-w-6xl mx-auto">
+                   <div className="flex flex-col items-center text-center">
+                      <div className="flex items-center gap-3 mb-4">
+                         <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-[0.2em]">Focus Observation</span>
+                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{selectedLake.town}, ME</span>
                       </div>
+                      <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-6">
+                        {selectedLake.name}
+                      </h1>
+                      <div className="flex gap-2">
+                        <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Node ID: {selectedLake.id}</span>
+                        <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Status: Verified</span>
+                      </div>
+                   </div>
 
-                      <div className="w-full lg:w-[450px] bg-slate-900/40 p-6 rounded-3xl border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                          <Icons.Info />
-                        </div>
-                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Technician Audit Narrative</h3>
-                        <p className="text-sm font-bold text-slate-300 leading-relaxed italic mono">
-                          "{searchDescription || generatePredictiveNarrative(selectedLake)}"
-                        </p>
+                   {/* Centered Audit Narrative */}
+                   <div className="w-full max-w-4xl mx-auto bg-slate-900/40 p-10 rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-center">
+                      <div className="absolute top-0 left-0 p-6 opacity-5">
+                        <Icons.Info />
+                      </div>
+                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">Technician Audit Narrative</h3>
+                      <p className="text-xl font-bold text-slate-200 leading-relaxed italic mono max-w-3xl mx-auto">
+                        {`"${searchDescription || generatePredictiveNarrative(selectedLake)}"`}
+                      </p>
+                      <div className="absolute bottom-0 right-0 p-6 opacity-5 transform rotate-180">
+                        <Icons.Info />
                       </div>
                    </div>
 
@@ -199,9 +185,9 @@ const App: React.FC = () => {
                         { label: 'Nutrients (P)', val: selectedLake.phosphorusLevel, unit: 'ppb', color: 'text-rose-400' },
                         { label: 'Biomass (Chl)', val: selectedLake.chlorophyllLevel, unit: 'ppb', color: 'text-emerald-400' }
                       ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900/20 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer" onClick={() => setIsDetailsModalOpen(true)}>
+                        <div key={i} className="bg-slate-900/20 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer text-center" onClick={() => setIsDetailsModalOpen(true)}>
                           <p className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em] mb-4">{stat.label}</p>
-                          <div className="flex items-baseline gap-2">
+                          <div className="flex items-baseline justify-center gap-2">
                             <span className={`text-5xl font-black ${stat.color} tracking-tighter`}>{stat.val}</span>
                             <span className="text-[10px] font-black text-slate-500 uppercase">{stat.unit}</span>
                           </div>
@@ -220,7 +206,14 @@ const App: React.FC = () => {
                )}
             </div>
           ) : view === 'map' ? (
-            <BiosecurityMapView lakes={filteredLakes} centerLake={selectedLake} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
+            <BiosecurityMapView 
+              lakes={filteredLakes} 
+              centerLake={selectedLake} 
+              onSelectLake={handleLakeInteraction} 
+              onClose={() => setView('dashboard')}
+              searchRadius={searchRadius}
+              onRadiusChange={setSearchRadius}
+            />
           ) : view === 'cluster' ? (
             <ClusterAnalysisView lakes={filteredLakes} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
           ) : (
@@ -261,7 +254,7 @@ const App: React.FC = () => {
         </footer>
       </main>
 
-      <LakeDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} lake={selectedLake} />
+      {isDetailsModalOpen && <LakeDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} lake={selectedLake} />}
       <InvasiveModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} lakes={filteredLakes} onSelectLake={handleLakeInteraction} />
     </div>
   );

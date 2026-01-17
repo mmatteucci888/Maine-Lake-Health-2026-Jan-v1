@@ -9,6 +9,61 @@ export interface ClusterResult {
   coordinates: { x: number; y: number };
 }
 
+export interface ForecastPoint {
+  year: number;
+  val: number;
+  isForecast: boolean;
+}
+
+/**
+ * Performs simple linear regression and returns a 5-year forecast.
+ * Adds a "Climate Multiplier" to account for warming trends in Maine lakes.
+ */
+export const generateForecast = (
+  history: { year: number | string; val: number }[],
+  yearsToForecast: number = 5,
+  climateTrend: 'warming' | 'stable' = 'warming'
+): ForecastPoint[] => {
+  if (history.length < 2) return [];
+
+  const points = history.map(h => ({ x: Number(h.year), y: h.val }));
+  const n = points.length;
+  
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  points.forEach(p => {
+    sumX += p.x;
+    sumY += p.y;
+    sumXY += p.x * p.y;
+    sumXX += p.x * p.x;
+  });
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  const lastYear = points[points.length - 1].x;
+  const forecast: ForecastPoint[] = [];
+
+  // Climate trend adjustment: Maine lakes are seeing approx 0.5-1% increase in nutrient mobility 
+  // and slight clarity reduction due to increased storm frequency.
+  const climateFactor = climateTrend === 'warming' ? 1.02 : 1.0;
+
+  for (let i = 1; i <= yearsToForecast; i++) {
+    const targetYear = lastYear + i;
+    let predictedVal = slope * targetYear + intercept;
+    
+    // Apply climate weighting
+    predictedVal *= Math.pow(climateFactor, i);
+    
+    forecast.push({
+      year: targetYear,
+      val: parseFloat(Math.max(0, predictedVal).toFixed(2)),
+      isForecast: true
+    });
+  }
+
+  return forecast;
+};
+
 export const calculateTSI = (secchiDepth: number): number => {
   if (secchiDepth <= 0) return 100;
   const tsi = 60 - (14.41 * Math.log(secchiDepth));
@@ -22,18 +77,6 @@ export const getTrophicLabel = (tsi: number): string => {
   return "Hypereutrophic (Severe Nutrient Saturation)";
 };
 
-export const getRegionalComparison = (currentLake: LakeData, allLakes: LakeData[]) => {
-  if (allLakes.length === 0) return { secchiDiff: 0, phosDiff: 0, avgSecchi: 0, avgPhos: 0 };
-  const avgSecchi = allLakes.reduce((acc, l) => acc + l.lastSecchiDiskReading, 0) / allLakes.length;
-  const avgPhos = allLakes.reduce((acc, l) => acc + l.phosphorusLevel, 0) / allLakes.length;
-  return {
-    secchiDiff: ((currentLake.lastSecchiDiskReading - avgSecchi) / avgSecchi) * 100,
-    phosDiff: ((currentLake.phosphorusLevel - avgPhos) / avgPhos) * 100,
-    avgSecchi,
-    avgPhos
-  };
-};
-
 export const generatePredictiveNarrative = (lake: LakeData): string => {
   const tsi = calculateTSI(lake.lastSecchiDiskReading);
   const flowCam = lake.flowCamRecent;
@@ -41,30 +84,24 @@ export const generatePredictiveNarrative = (lake: LakeData): string => {
 
   let profile = "";
   
-  // 1. Watershed & Hydrological Vulnerability
-  // Use Number() to ensure type safety for comparisons and arithmetic
   if (metrics && Number(metrics.imperviousSurface) > 10) {
     profile += `The catchment exhibits a heightened impervious surface density of ${Number(metrics.imperviousSurface).toFixed(1)}%, which significantly increases the velocity of non-point source nutrient transport during storm events. `;
   } else {
     profile += `The watershed maintains a high degree of natural vegetative cover, which facilitates efficient infiltration and mitigates excessive runoff. `;
   }
 
-  // 2. Limnological Stratification & Oxygen Profiles
   if (metrics && Number(metrics.anoxiaDepth) < 6) {
     profile += `Water column analysis reveals a shallow anoxic interface at ${Number(metrics.anoxiaDepth).toFixed(1)} meters, suggesting high hypolimnetic oxygen demand and a potential loss of cold-water refugia for salmonid species. `;
   } else {
     profile += `The dissolved oxygen profile suggests deep-water stability, providing adequate benthic habitat for oxygen-sensitive organisms. `;
   }
 
-  // 3. Riparian Buffers & Habitat Integrity
   if (metrics && Number(metrics.shorelineNaturalization) < 70) {
-    // FIX: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
     profile += `Riparian integrity is compromised by approximately ${(100 - Number(metrics.shorelineNaturalization)).toFixed(0)}% development, reducing the littoral zone's capacity for bio-filtration. `;
   } else if (metrics) {
     profile += `The shoreline remains substantially naturalized (${Number(metrics.shorelineNaturalization).toFixed(0)}%), providing a robust bio-buffer against external loading. `;
   }
 
-  // 4. Biological Productivity & Taxa Analysis
   if (flowCam && flowCam.taxaDistribution.cyanobacteria > 15) {
     profile += `Imaging Flow Cytometry has detected a significant biovolume of Cyanobacteria (${flowCam.taxaDistribution.cyanobacteria}%), indicating an elevated risk for harmful algal blooms (HABs) under high-temperature conditions. `;
   } else if (tsi < 42) {
