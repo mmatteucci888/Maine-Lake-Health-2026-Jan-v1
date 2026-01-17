@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# 🌊 Maine Lake Guardian PRO
 
-This contains everything you need to run your app locally.
+A high-performance dashboard for monitoring lake health within a 50-mile radius of Norway, Maine.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1YF-Gx82zZVN3umQvbi4TujeAj63I7u2I
+## 🚀 One-Click Setup (Google IDX)
+If you are viewing this in **Google IDX**:
+1. The environment will automatically run `npm install`.
+2. A preview window will appear shortly.
+3. To share with others, click the **Firebase** icon in the sidebar and select **Deploy to Hosting**.
 
-## Run Locally
+## 🛠 Manual Setup
+If you downloaded this folder:
+1. Open your terminal in this directory.
+2. Run `npm install` (this recreates the `node_modules` folder).
+3. Run `npm run dev` to start the app.
 
-**Prerequisites:**  Node.js
+## 📊 Features
+- **Regional Registry**: Pre-loaded data for major lakes (Pennesseewassee, Sebago, Thompson, etc.).
+- **AI Ecological Audit**: Powered by Gemini 3 Flash for real-time water quality analysis.
+- **Historical Import**: Drag and drop `.xlsx` or `.csv` files to visualize your own monitoring data.
+- **Biosecurity Alerts**: Real-time tracking of invasive species detections in the Oxford County region.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🔑 Environment Variables
+This app requires a `process.env.API_KEY` for the Gemini AI features. In Google IDX, you can set this in the **Secrets Manager**.

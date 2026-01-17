@@ -1,7 +1,9 @@
 {
   "name": "Maine Lake Guardian PRO",
   "description": "Professional-grade ecological monitoring platform for Maine's Great Ponds. Features dynamic nutrient analysis and hyper-local 50-mile regional benchmarking.",
-  "version": "1.1.0",
+  "version": "1.2.0",
+  "framework": "React",
+  "template": "gemini-api-starter",
   "requestFramePermissions": [
     "geolocation"
   ]

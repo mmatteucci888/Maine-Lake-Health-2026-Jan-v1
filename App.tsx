@@ -1,343 +1,268 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LAKES_DATA, Icons, NORWAY_MAINE_COORDS } from './constants';
-import { LakeData, ChatMessage, GroundingSource } from './types';
-import LakeCard from './components/LakeCard';
-import HealthChart from './components/HealthChart';
-import HistoricalTrendChart from './components/HistoricalTrendChart';
-import InvasiveModal from './components/InvasiveModal';
-import FileUploader from './components/FileUploader';
+import { LakeData } from './types';
 import { getLakeHealthInsights } from './services/geminiService';
 import { calculateDistance } from './utils/geoUtils';
+import LakeCard from './components/LakeCard';
+import HistoricalTrendChart from './components/HistoricalTrendChart';
+import InvasiveAlerts from './components/InvasiveAlerts';
+import InvasiveModal from './components/InvasiveModal';
+import ComparisonView from './components/ComparisonView';
+import LakeDetailsModal from './components/LakeDetailsModal';
+import BiosecurityMapView from './components/BiosecurityMapView';
+import ClusterAnalysisView from './components/ClusterAnalysisView';
+import { generatePredictiveNarrative } from './utils/analysisUtils';
 
 const App: React.FC = () => {
-  const [activeLakes, setActiveLakes] = useState<LakeData[]>(LAKES_DATA);
-  const [uploadedLakes, setUploadedLakes] = useState<LakeData[]>([]);
-  const [selectedLake, setSelectedLake] = useState<LakeData | null>(LAKES_DATA[0]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentSources, setCurrentSources] = useState<GroundingSource[]>([]);
-  const [viewMode, setViewMode] = useState<'snapshot' | 'historical' | 'synthesis'>('snapshot');
-  const [isInvasiveModalOpen, setIsInvasiveModalOpen] = useState(false);
+  const [managedLakes, setManagedLakes] = useState<LakeData[]>(() => {
+    const saved = localStorage.getItem('managed_lakes_v2');
+    return saved ? JSON.parse(saved) : LAKES_DATA;
+  });
   
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const mainContentRef = useRef<HTMLDivElement>(null);
+  const [selectedLake, setSelectedLake] = useState<LakeData>(managedLakes[0]);
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchDescription, setSearchDescription] = useState<string>("");
+  const [searchRadius, setSearchRadius] = useState<number>(300);
+  const [view, setView] = useState<'dashboard' | 'map' | 'cluster' | 'compare'>('dashboard');
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [compareSet, setCompareSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const saved = localStorage.getItem('guardian_pro_uploads');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setUploadedLakes(parsed);
-      } catch (e) {
-        console.error("Failed to load saved data");
-      }
-    }
-  }, []);
+    localStorage.setItem('managed_lakes_v2', JSON.stringify(managedLakes));
+  }, [managedLakes]);
 
-  useEffect(() => {
-    if (uploadedLakes.length > 0) {
-      localStorage.setItem('guardian_pro_uploads', JSON.stringify(uploadedLakes));
-    }
-  }, [uploadedLakes]);
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
-
-  const allLakes = useMemo(() => {
-    return [...uploadedLakes, ...activeLakes];
-  }, [activeLakes, uploadedLakes]);
-
-  const invasiveCount = useMemo(() => {
-    return allLakes.filter(l => l.invasiveSpeciesStatus === 'Detected').length;
-  }, [allLakes]);
-
-  const regionalLakes = useMemo(() => {
-    const centerPoint = selectedLake ? selectedLake.coordinates : NORWAY_MAINE_COORDS;
-    return allLakes.filter(lake => {
+  const filteredLakes = useMemo(() => {
+    return managedLakes.filter(lake => {
+      if (!lake.coordinates) return false;
       const dist = calculateDistance(
-        centerPoint.lat, 
-        centerPoint.lng,
-        lake.coordinates.lat,
+        NORWAY_MAINE_COORDS.lat, 
+        NORWAY_MAINE_COORDS.lng, 
+        lake.coordinates.lat, 
         lake.coordinates.lng
       );
-      return dist <= 50; 
-    }).sort((a, b) => b.lastSecchiDiskReading - a.lastSecchiDiskReading);
-  }, [allLakes, selectedLake]);
-
-  const handleBulkDataImport = (newLakes: LakeData[]) => {
-    setUploadedLakes(prev => {
-      const updatedPrev = [...prev];
-      const trulyNew: LakeData[] = [];
-      newLakes.forEach(nl => {
-        const existingIdx = updatedPrev.findIndex(p => p.name.toLowerCase() === nl.name.toLowerCase());
-        if (existingIdx > -1) {
-          updatedPrev[existingIdx] = {
-            ...updatedPrev[existingIdx],
-            historicalData: [...(updatedPrev[existingIdx].historicalData || []), ...(nl.historicalData || [])],
-            lastSecchiDiskReading: nl.lastSecchiDiskReading,
-            phosphorusLevel: nl.phosphorusLevel,
-            lastUpdated: nl.lastUpdated
-          };
-        } else {
-          trulyNew.push(nl);
-        }
-      });
-      return [...trulyNew, ...updatedPrev];
+      return dist <= searchRadius;
     });
-    if (newLakes.length > 0) {
-      const target = newLakes[0];
-      setSelectedLake(target);
-      setViewMode('historical');
-    }
-  };
+  }, [managedLakes, searchRadius]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim()) return;
-    
-    const userMsg = inputValue;
-    setInputValue('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setIsTyping(true);
-
-    const result = await getLakeHealthInsights(userMsg);
-    
-    setMessages(prev => [...prev, { role: 'model', text: result.text }]);
-    setCurrentSources(result.sources);
-    setIsTyping(false);
-
-    if (result.discoveredLake) {
-      const lakeInfo = result.discoveredLake;
-      const newLake: LakeData = {
-        id: lakeInfo.id || `discovered-${Date.now()}`,
-        name: lakeInfo.name,
-        town: lakeInfo.town,
-        zipCode: "00000",
-        coordinates: { lat: lakeInfo.lat, lng: lakeInfo.lng },
-        waterQuality: lakeInfo.quality as any || 'Good',
-        lastSecchiDiskReading: lakeInfo.secchi,
-        phosphorusLevel: lakeInfo.phosphorus,
-        chlorophyllLevel: 2.0,
-        invasiveSpeciesStatus: (lakeInfo.status as any) || 'None detected',
-        lastUpdated: new Date().toISOString().split('T')[0]
-      };
-
-      const exists = allLakes.find(l => l.name.toLowerCase() === newLake.name.toLowerCase());
-      if (!exists) {
-        setActiveLakes(prev => [newLake, ...prev]);
-        setSelectedLake(newLake);
-      } else {
-        setSelectedLake(exists);
-      }
-      
-      setViewMode('snapshot');
-      mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const getSafeHistoricalData = (lake: LakeData) => {
-    if (lake.historicalData && lake.historicalData.length > 0) return lake.historicalData;
-    
-    // Generate a 10-year trend (2014-2024)
-    const history = [];
-    const baseSecchi = lake.lastSecchiDiskReading;
-    const basePhos = lake.phosphorusLevel;
-    
-    for (let i = 0; i <= 10; i++) {
-      const year = 2014 + i;
-      // Simulate minor fluctuations with a slight trend
-      // Secchi depth tends to fluctuate +/- 1.5m
-      // Phosphorus tends to fluctuate +/- 3ppb
-      const variance = (Math.sin(i * 0.8) * 0.5) + (Math.random() * 0.4);
-      history.push({
-        year: year.toString(),
-        secchi: parseFloat((baseSecchi - (10 - i) * 0.05 + variance).toFixed(1)),
-        phosphorus: parseFloat((basePhos + (10 - i) * 0.1 - variance * 2).toFixed(1))
+  const handleLakeInteraction = (lake: LakeData) => {
+    if (isCompareMode) {
+      setCompareSet(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(lake.id)) newSet.delete(lake.id);
+        else newSet.add(lake.id);
+        return newSet;
       });
+    } else {
+      setSelectedLake(lake);
+      setSearchDescription(""); 
+      setIsDetailsModalOpen(true);
     }
-    return history;
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
-      <aside className="w-80 border-r border-slate-800 bg-slate-900/40 flex flex-col">
-        <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-200">
+      {/* Sidebar - Registry Node */}
+      <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 no-print">
+        <div className="p-6 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20">
               <Icons.Droplet />
             </div>
-            <h1 className="text-sm font-black uppercase tracking-tighter text-white">Lake Guardian Pro</h1>
+            <div>
+              <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Lake Guardian</h1>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Maine Registry Node</p>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Western Maine Ecological Basin</p>
-          <FileUploader onDataLoaded={handleBulkDataImport} />
-          {uploadedLakes.length > 0 && (
-            <button onClick={() => { localStorage.removeItem('guardian_pro_uploads'); setUploadedLakes([]); setSelectedLake(LAKES_DATA[0]); }} className="mt-2 w-full text-[9px] font-black text-slate-500 uppercase hover:text-rose-400 transition-colors py-1">
-              Clear Persistent Data
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar relative">
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Scanning Radius</span>
+              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">{searchRadius}mi</span>
+            </div>
+            <input 
+              type="range" 
+              min="10" 
+              max="500" 
+              step="10" 
+              value={searchRadius} 
+              onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+
+          <nav className="space-y-1">
+            <button 
+              onClick={() => setView('map')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'map' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
+            >
+              <Icons.MapPin /> <span className="text-[10px] font-black uppercase tracking-widest">Biosecurity Map</span>
             </button>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
-          <div className="flex items-center justify-between mb-2 px-2">
-            <h2 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Active Registry</h2>
-            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">{allLakes.length} LAKES</span>
+            <button 
+              onClick={() => setView('cluster')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'cluster' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
+            >
+              <Icons.Microscope /> <span className="text-[10px] font-black uppercase tracking-widest">Niche Space Analysis</span>
+            </button>
+          </nav>
+
+          <div className="pt-4 space-y-3">
+            <div className="flex justify-between items-center px-2">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Managed Basins ({filteredLakes.length})</h3>
+              <button 
+                onClick={() => setIsCompareMode(!isCompareMode)}
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase transition-all ${isCompareMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                {isCompareMode ? 'Cancel' : 'Compare'}
+              </button>
+            </div>
+            
+            <div className="space-y-2">
+              {filteredLakes.map(lake => (
+                <LakeCard 
+                  key={lake.id} 
+                  lake={lake} 
+                  isSelected={selectedLake?.id === lake.id} 
+                  onClick={handleLakeInteraction} 
+                  isCompareMode={isCompareMode} 
+                  isSelectedForCompare={compareSet.has(lake.id)} 
+                />
+              ))}
+            </div>
           </div>
-          {allLakes.map(lake => (
-            <LakeCard key={lake.id} lake={lake} isSelected={selectedLake?.id === lake.id} onClick={(l) => { setSelectedLake(l); setViewMode('snapshot'); }} />
-          ))}
         </div>
+        
+        {isCompareMode && compareSet.size >= 2 && (
+          <div className="p-4 bg-blue-600">
+             <button 
+              onClick={() => setView('compare')}
+              className="w-full py-2 bg-white text-blue-600 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-lg"
+             >
+                Execute Compare ({compareSet.size})
+             </button>
+          </div>
+        )}
       </aside>
 
-      <main ref={mainContentRef} className="flex-1 overflow-y-auto bg-slate-950 relative scroll-smooth">
-        <div className="max-w-6xl mx-auto p-8 relative z-10">
-          <header className="flex justify-between items-center mb-12">
-            <div className="flex items-center gap-6">
-              {selectedLake && (
-                <div key={selectedLake.id} className="animate-in fade-in slide-in-from-left-4 duration-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icons.MapPin />
-                    <span className="text-blue-500 text-[10px] font-black uppercase tracking-widest">{selectedLake.town}, ME</span>
-                  </div>
-                  <h2 className="text-4xl font-black text-white tracking-tight">{selectedLake.name}</h2>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <button onClick={() => setIsInvasiveModalOpen(true)} className="relative group w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center hover:border-rose-500/50 transition-all">
-                <div className={`text-slate-400 group-hover:text-rose-500 transition-colors ${invasiveCount > 0 ? 'animate-bounce' : ''}`}><Icons.Warning /></div>
-                {invasiveCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-[10px] font-black text-white rounded-full flex items-center justify-center border-2 border-slate-950">{invasiveCount}</span>}
-              </button>
-              <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl shadow-2xl">
-                <button onClick={() => setViewMode('snapshot')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'snapshot' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Audit</button>
-                <button onClick={() => setViewMode('historical')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'historical' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>History</button>
-                {uploadedLakes.length > 1 && <button onClick={() => setViewMode('synthesis')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'synthesis' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Synthesis</button>}
-              </div>
-            </div>
-          </header>
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
+        <div className="scanline" />
+        
+        <header className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-md z-20 shrink-0 no-print">
+          <div className="flex items-center gap-6">
+             <InvasiveAlerts lakes={filteredLakes} onSelectLake={handleLakeInteraction} onOpenModal={() => setIsModalOpen(true)} />
+          </div>
+          <div className="flex items-center gap-2">
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Registry Link: Active</span>
+          </div>
+        </header>
 
-          {selectedLake && (
-            <div className="mb-12 min-h-[400px]">
-              {viewMode === 'snapshot' && (
-                <div key={`snapshot-${selectedLake.id}`} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-3xl backdrop-blur-sm">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Water Clarity (Secchi)</p>
-                      <div className="flex items-baseline gap-2"><span className="text-4xl font-black text-white">{selectedLake.lastSecchiDiskReading}</span><span className="text-slate-500 font-bold text-sm">meters</span></div>
-                    </div>
-                    <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-3xl backdrop-blur-sm">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Nutrient Load (Phos)</p>
-                      <div className="flex items-baseline gap-2"><span className="text-4xl font-black text-rose-500">{selectedLake.phosphorusLevel}</span><span className="text-slate-500 font-bold text-sm">ppb</span></div>
-                    </div>
-                    <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-3xl backdrop-blur-sm">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Invasive Status</p>
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedLake.invasiveSpeciesStatus === 'None detected' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>{selectedLake.invasiveSpeciesStatus}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="p-8 bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem]">
-                      <HealthChart data={regionalLakes} metric="lastSecchiDiskReading" title="Clarity Benchmarking" uploadedIds={uploadedLakes.map(l => l.id)} />
-                    </div>
-                    <div className="p-8 bg-slate-900/30 border border-slate-800/50 rounded-[2.5rem]">
-                      <HealthChart data={regionalLakes} metric="phosphorusLevel" title="Nutrient Audit" uploadedIds={uploadedLakes.map(l => l.id)} />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {viewMode === 'historical' && (
-                <div key={`history-${selectedLake.id}`} className="p-8 bg-slate-900/30 border border-slate-800 rounded-[2.5rem] animate-in zoom-in-95 duration-500">
-                  <HistoricalTrendChart data={getSafeHistoricalData(selectedLake)} lakeName={selectedLake.name} />
-                </div>
-              )}
-
-              {viewMode === 'synthesis' && (
-                <div className="p-8 bg-slate-900/30 border border-slate-800 rounded-[2.5rem] animate-in slide-in-from-right-4 duration-500">
-                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xl font-black text-amber-400 uppercase tracking-tighter">Regional Health Trend (10 Year)</h3>
-                  </div>
-                  <HistoricalTrendChart 
-                    data={uploadedLakes.reduce((acc: any[], lake) => {
-                      (lake.historicalData || []).forEach(reading => {
-                        const existing = acc.find(a => a.year === reading.year);
-                        if (existing) {
-                          existing.secchi = (existing.secchi + reading.secchi) / 2;
-                          existing.phosphorus = (existing.phosphorus + reading.phosphorus) / 2;
-                        } else {
-                          acc.push({...reading});
-                        }
-                      });
-                      return acc;
-                    }, []).sort((a,b) => Number(String(a.year).match(/\d+/)) - Number(String(b.year).match(/\d+/)))}
-                    lakeName="Aggregated Uploads"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-[2rem] overflow-hidden flex flex-col h-[500px] shadow-2xl">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Maine Lake AI Analyst</span>
-                  </div>
-                  {currentSources.length > 0 && (
-                    <div className="flex gap-2">
-                      {currentSources.slice(0, 2).map((s, idx) => (
-                        <a key={idx} href={s.uri} target="_blank" rel="noreferrer" className="text-[9px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-md text-slate-400 font-bold border border-slate-700">Source {idx + 1}</a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
-                  {messages.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                      <Icons.Info />
-                      <p className="mt-4 text-xs font-bold uppercase tracking-widest max-w-[240px]">Search for a lake to sync the dashboard (e.g., "Tell me about Highland Lake in Bridgton")</p>
-                    </div>
-                  )}
-                  {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none shadow-lg' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}`}>
-                        {msg.text}
-                      </div>
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-800 p-4 rounded-2xl rounded-tl-none border border-slate-700">
-                        <div className="flex gap-1">
-                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" /><div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" /><div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {view === 'dashboard' ? (
+            <div className="p-8 lg:p-12 space-y-12">
+               {selectedLake && (
+                 <div className="animate-fade-in space-y-12">
+                   <div className="flex flex-col lg:flex-row gap-8 items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-4">
+                           <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-[0.2em]">Focus Observation</span>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{selectedLake.town}, ME</span>
+                        </div>
+                        <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-6">
+                          {selectedLake.name}
+                        </h1>
+                        <div className="flex gap-2">
+                          <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Node ID: {selectedLake.id}</span>
+                          <span className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[9px] font-black uppercase text-slate-400">Status: Verified</span>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-                <form onSubmit={handleSendMessage} className="p-4 bg-slate-950 border-t border-slate-800 flex gap-2">
-                  <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Analyze a lake..." className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-600" />
-                  <button className="w-10 h-10 bg-blue-500 hover:bg-blue-400 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg shadow-blue-500/20"><Icons.Search /></button>
-                </form>
-              </div>
+
+                      <div className="w-full lg:w-[450px] bg-slate-900/40 p-6 rounded-3xl border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                          <Icons.Info />
+                        </div>
+                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Technician Audit Narrative</h3>
+                        <p className="text-sm font-bold text-slate-300 leading-relaxed italic mono">
+                          "{searchDescription || generatePredictiveNarrative(selectedLake)}"
+                        </p>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Transparency', val: selectedLake.lastSecchiDiskReading, unit: 'm', color: 'text-blue-400' },
+                        { label: 'Nutrients (P)', val: selectedLake.phosphorusLevel, unit: 'ppb', color: 'text-rose-400' },
+                        { label: 'Biomass (Chl)', val: selectedLake.chlorophyllLevel, unit: 'ppb', color: 'text-emerald-400' }
+                      ].map((stat, i) => (
+                        <div key={i} className="bg-slate-900/20 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer" onClick={() => setIsDetailsModalOpen(true)}>
+                          <p className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em] mb-4">{stat.label}</p>
+                          <div className="flex items-baseline gap-2">
+                            <span className={`text-5xl font-black ${stat.color} tracking-tighter`}>{stat.val}</span>
+                            <span className="text-[10px] font-black text-slate-500 uppercase">{stat.unit}</span>
+                          </div>
+                        </div>
+                      ))}
+                   </div>
+
+                   <div className="bg-slate-900/20 p-8 rounded-[3rem] border border-slate-800/50">
+                     <div className="flex items-center justify-between mb-8">
+                       <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Longitudinal Trend Map</h2>
+                       <button onClick={() => setIsDetailsModalOpen(true)} className="px-4 py-1.5 rounded-full border border-slate-700 text-[9px] font-black uppercase text-slate-400 hover:bg-slate-800 transition-all">Deep Diagnostics</button>
+                     </div>
+                     <HistoricalTrendChart data={selectedLake.historicalData || []} lakeName={selectedLake.name} />
+                   </div>
+                 </div>
+               )}
             </div>
-            <div className="space-y-6">
-              <div className="p-6 bg-slate-900/40 border border-slate-800 rounded-3xl">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">Insights Context</h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">The AI analyst uses real-time search to verify current conditions. Dashboard history is now expanded to <span className="text-blue-400">10 years</span> to better visualize ecological shifts.</p>
-              </div>
-            </div>
-          </div>
+          ) : view === 'map' ? (
+            <BiosecurityMapView lakes={filteredLakes} centerLake={selectedLake} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
+          ) : view === 'cluster' ? (
+            <ClusterAnalysisView lakes={filteredLakes} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
+          ) : (
+            <ComparisonView lakes={managedLakes.filter(l => compareSet.has(l.id))} onClose={() => setView('dashboard')} />
+          )}
         </div>
-        <InvasiveModal isOpen={isInvasiveModalOpen} onClose={() => setIsInvasiveModalOpen(false)} lakes={allLakes} onSelectLake={setSelectedLake} />
+
+        <footer className="p-6 border-t border-slate-800 bg-slate-950 no-print">
+           <form onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              const input = (e.currentTarget.elements.namedItem('query') as HTMLInputElement).value;
+              const result = await getLakeHealthInsights(input);
+              if (result.discoveredLakes.length > 0) {
+                setManagedLakes(prev => [result.discoveredLakes[0], ...prev]);
+                setSelectedLake(result.discoveredLakes[0]);
+              }
+              setSearchDescription(result.text);
+              setLoading(false);
+           }} className="max-w-4xl mx-auto flex gap-3">
+              <div className="relative flex-1">
+                <input 
+                  name="query" 
+                  placeholder="Query Registry Terminal (e.g. 'Audit Sebago Lake clarity')" 
+                  className="w-full px-6 py-4 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all text-xs font-bold mono" 
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                  <Icons.Search />
+                </div>
+              </div>
+              <button 
+                disabled={loading}
+                className="px-8 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20"
+              >
+                {loading ? 'Consulting...' : 'Execute Audit'}
+              </button>
+           </form>
+        </footer>
       </main>
+
+      <LakeDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} lake={selectedLake} />
+      <InvasiveModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} lakes={filteredLakes} onSelectLake={handleLakeInteraction} />
     </div>
   );
 };

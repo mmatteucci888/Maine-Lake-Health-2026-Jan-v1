@@ -1,27 +1,38 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const API_KEY = process.env.API_KEY;
-
 export const getLakeHealthInsights = async (prompt: string) => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Always create a new instance right before use to ensure the most up-to-date API key is used
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const systemInstruction = `
-    You are the Maine Lake Intelligence Agent. You analyze ecological data for Maine lakes.
-    
-    TASK:
-    1. Answer user questions about Maine lakes using Google Search grounding.
-    2. If the user asks about a specific lake, ALWAYS attempt to find its:
-       - Precise coordinates (lat/lng)
-       - Town name
-       - Recent Secchi Disk Reading (clarity in meters)
-       - Phosphorus level (in ppb)
-       - General water quality status (Excellent, Good, Fair, Poor)
-    
-    OUTPUT STRUCTURE:
-    You must return a JSON object. The 'discoveredLake' field is CRITICAL for updating the dashboard.
-    If no specific lake is identified, set 'discoveredLake' to null.
-  `;
+  const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
+  Your primary objective is to provide a specific ecological audit for a lake requested by the user. 
+  Use Google Search to locate the absolute latest data for that specific basin.
+  
+  If the user asks about a new lake, find its specific coordinates, town, and current water metrics.
+  
+  Note: Many Maine lakes (Auburn, China, Great Pond, etc.) utilize Imaging Flow Cytometry (FlowCam) for phytoplankton biovolume tracking. If you find biovolume data (um3/mL) or specific taxa counts, include them in the answer.
+  
+  Format your response STRICTLY as a JSON object:
+  {
+    "answer": "A 2-3 sentence technical ecological summary focused on the lake being searched. Mention FlowCam monitoring if relevant.",
+    "discoveredLakes": [
+      {
+        "name": "Full Proper Lake Name",
+        "town": "Town Name",
+        "lat": 44.x,
+        "lng": -70.x,
+        "quality": "Excellent/Good/Fair/Poor",
+        "secchi": 5.0,
+        "phosphorus": 10.0,
+        "chlorophyll": 2.0,
+        "history": [
+           {"year": 2020, "secchi": 4.5, "phosphorus": 12.0},
+           {"year": 2024, "secchi": 5.5, "phosphorus": 8.0}
+        ]
+      }
+    ]
+  }`;
 
   try {
     const response = await ai.models.generateContent({
@@ -30,49 +41,79 @@ export const getLakeHealthInsights = async (prompt: string) => {
       config: {
         systemInstruction,
         tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            answer: { type: Type.STRING, description: "Detailed scientific answer or commentary about the lake's health." },
-            discoveredLake: {
-              type: Type.OBJECT,
-              nullable: true,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.STRING },
-                town: { type: Type.STRING },
-                lat: { type: Type.NUMBER },
-                lng: { type: Type.NUMBER },
-                quality: { type: Type.STRING },
-                secchi: { type: Type.NUMBER },
-                phosphorus: { type: Type.NUMBER },
-                status: { type: Type.STRING }
-              },
-              required: ["id", "name", "town", "lat", "lng", "quality", "secchi", "phosphorus"]
-            }
-          }
-        }
+        responseMimeType: "application/json"
       },
     });
 
-    const data = JSON.parse(response.text);
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
       title: chunk.web?.title,
       uri: chunk.web?.uri,
     })).filter((s: any) => s.uri) || [];
 
+    const text = response.text || "{}";
+    // Sanitize in case the model wraps in markdown blocks despite MimeType
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const data = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+
     return {
-      text: data.answer,
-      discoveredLake: data.discoveredLake,
-      sources: sources
+      text: data.answer || "Audit complete.",
+      discoveredLakes: data.discoveredLakes?.map((l: any) => ({
+        ...l,
+        id: l.name.toLowerCase().replace(/\s+/g, '-'),
+        lastUpdated: '2024',
+        lastSecchiDiskReading: l.secchi || 5.0,
+        phosphorusLevel: l.phosphorus || 10.0,
+        chlorophyllLevel: l.chlorophyll || 2.0,
+        waterQuality: l.quality || 'Good',
+        coordinates: { lat: l.lat || 44.2, lng: l.lng || -70.5 },
+        historicalData: l.history || [],
+        zipCode: "00000",
+        invasiveSpeciesStatus: "None detected"
+      })) || [],
+      sources: sources.slice(0, 3)
     };
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return {
-      text: "I'm having trouble analyzing the data for that lake right now. Please try again.",
-      discoveredLake: null,
-      sources: []
+    console.error("Gemini Health Error:", error);
+    return { 
+      text: "Analysis interrupted. Check API key or connection.", 
+      discoveredLakes: [], 
+      sources: [] 
     };
+  }
+};
+
+/**
+ * Fetches recent news regarding a specific lake using Google Search grounding.
+ */
+export const getLakeNews = async (lakeName: string, town: string) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `Search for recent environmental news, public health notices, water quality alerts, or community events related to ${lakeName} in ${town}, Maine for 2024. Summarize the top items.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        systemInstruction: "You are a regional environmental news aggregator. Provide a brief summary of relevant articles.",
+      },
+    });
+
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
+      title: chunk.web?.title,
+      uri: chunk.web?.uri,
+    })).filter((s: any) => s.uri) || [];
+
+    const text = response.text || "";
+    const articles = text.split(/\n\d\.\s+/).filter(a => a.trim().length > 0);
+
+    return {
+      articles: articles.map(content => ({ content })),
+      sources: sources.slice(0, 3)
+    };
+  } catch (error) {
+    console.error("Gemini News Error:", error);
+    return { articles: [], sources: [] };
   }
 };

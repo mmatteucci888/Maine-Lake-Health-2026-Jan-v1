@@ -1,0 +1,1 @@
+// Component removed in favor of integrated labels. See ClusterAnalysisView and LakeDetailsModal for new implementation.

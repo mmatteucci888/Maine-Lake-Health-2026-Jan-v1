@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { LakeData } from '../types';
@@ -12,14 +11,16 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onDataLoaded }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isHovering, setIsHovering] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement> | { target: { files: FileList | null } }) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const bstr = evt.target?.result;
+        if (typeof bstr !== 'string') return;
+
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
@@ -28,7 +29,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onDataLoaded }) => {
         // Grouping logic for historical data
         const lakeMap: Record<string, LakeData> = {};
 
-        data.forEach((row, index) => {
+        data.forEach((row: any, index: number) => {
           const lakeName = row.Name || row.Lake || 'Uploaded Lake';
           const year = row.Year || row.Date || row.SampleDate || '2024';
           const secchi = parseFloat(row.Secchi || row.Clarity || 5.0);
@@ -83,7 +84,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onDataLoaded }) => {
         e.preventDefault();
         setIsHovering(false);
         if (e.dataTransfer.files) {
-          const fakeEvent = { target: { files: e.dataTransfer.files } } as any;
+          const fakeEvent = { target: { files: e.dataTransfer.files } };
           handleFileUpload(fakeEvent);
         }
       }}
