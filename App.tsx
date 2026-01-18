@@ -31,6 +31,8 @@ const App: React.FC = () => {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSet, setCompareSet] = useState<Set<string>>(new Set());
 
+  const hasApiKey = !!process.env.API_KEY;
+
   useEffect(() => {
     localStorage.setItem('managed_lakes_v2', JSON.stringify(managedLakes));
   }, [managedLakes]);
@@ -141,8 +143,10 @@ const App: React.FC = () => {
              <InvasiveAlerts lakes={filteredLakes} onSelectLake={handleLakeInteraction} onOpenModal={() => setIsModalOpen(true)} />
           </div>
           <div className="flex items-center gap-2">
-             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Registry Link: Active</span>
+             <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-blue-500 animate-pulse' : 'bg-rose-500'}`} />
+             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+               Registry Link: {hasApiKey ? 'Active' : 'Missing Key'}
+             </span>
           </div>
         </header>
 
@@ -156,7 +160,7 @@ const App: React.FC = () => {
                          <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-[0.2em]">Focus Observation</span>
                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{selectedLake.town}, ME</span>
                       </div>
-                      <h1 className="text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-6">
+                      <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-6 text-center">
                         {selectedLake.name}
                       </h1>
                       <div className="flex gap-2">
@@ -166,13 +170,13 @@ const App: React.FC = () => {
                    </div>
 
                    {/* Centered Audit Narrative */}
-                   <div className="w-full max-w-4xl mx-auto bg-slate-900/40 p-10 rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-center">
+                   <div className="w-full max-w-4xl mx-auto bg-slate-900/40 p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-center">
                       <div className="absolute top-0 left-0 p-6 opacity-5">
                         <Icons.Info />
                       </div>
                       <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">Technician Audit Narrative</h3>
-                      <p className="text-xl font-bold text-slate-200 leading-relaxed italic mono max-w-3xl mx-auto">
-                        {`"${searchDescription || generatePredictiveNarrative(selectedLake)}"`}
+                      <p className="text-base sm:text-xl font-bold text-slate-200 leading-relaxed italic mono max-w-3xl mx-auto">
+                        {loading ? "Decrypting registry data..." : `"${searchDescription || generatePredictiveNarrative(selectedLake)}"`}
                       </p>
                       <div className="absolute bottom-0 right-0 p-6 opacity-5 transform rotate-180">
                         <Icons.Info />
@@ -188,15 +192,15 @@ const App: React.FC = () => {
                         <div key={i} className="bg-slate-900/20 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer text-center" onClick={() => setIsDetailsModalOpen(true)}>
                           <p className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em] mb-4">{stat.label}</p>
                           <div className="flex items-baseline justify-center gap-2">
-                            <span className={`text-5xl font-black ${stat.color} tracking-tighter`}>{stat.val}</span>
+                            <span className={`text-4xl sm:text-5xl font-black ${stat.color} tracking-tighter`}>{stat.val}</span>
                             <span className="text-[10px] font-black text-slate-500 uppercase">{stat.unit}</span>
                           </div>
                         </div>
                       ))}
                    </div>
 
-                   <div className="bg-slate-900/20 p-8 rounded-[3rem] border border-slate-800/50">
-                     <div className="flex items-center justify-between mb-8">
+                   <div className="bg-slate-900/20 p-6 sm:p-8 rounded-[2.5rem] sm:rounded-[3rem] border border-slate-800/50 overflow-hidden">
+                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
                        <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Longitudinal Trend Map</h2>
                        <button onClick={() => setIsDetailsModalOpen(true)} className="px-4 py-1.5 rounded-full border border-slate-700 text-[9px] font-black uppercase text-slate-400 hover:bg-slate-800 transition-all">Deep Diagnostics</button>
                      </div>
@@ -221,7 +225,12 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <footer className="p-6 border-t border-slate-800 bg-slate-950 no-print">
+        <footer className="p-4 sm:p-6 border-t border-slate-800 bg-slate-950 no-print">
+           {!hasApiKey && (
+             <div className="max-w-4xl mx-auto mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-center">
+               <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Mobile Warning: API Key Not Detected. Queries may fail.</p>
+             </div>
+           )}
            <form onSubmit={async (e) => {
               e.preventDefault();
               setLoading(true);
@@ -233,10 +242,11 @@ const App: React.FC = () => {
               }
               setSearchDescription(result.text);
               setLoading(false);
-           }} className="max-w-4xl mx-auto flex gap-3">
+           }} className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <input 
                   name="query" 
+                  autoComplete="off"
                   placeholder="Query Registry Terminal (e.g. 'Audit Sebago Lake clarity')" 
                   className="w-full px-6 py-4 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all text-xs font-bold mono" 
                 />
@@ -246,7 +256,7 @@ const App: React.FC = () => {
               </div>
               <button 
                 disabled={loading}
-                className="px-8 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20"
+                className="px-8 py-4 sm:py-0 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"
               >
                 {loading ? 'Consulting...' : 'Execute Audit'}
               </button>

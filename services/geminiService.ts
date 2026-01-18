@@ -2,20 +2,27 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 export const getLakeHealthInsights = async (prompt: string) => {
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("API_KEY is missing from environment variables.");
+    return { 
+      text: "Connection Error: API Key not found. If you are on mobile, please ensure the environment is correctly configured or use a desktop browser.", 
+      discoveredLakes: [], 
+      sources: [] 
+    };
+  }
+
   // Always create a new instance right before use to ensure the most up-to-date API key is used
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   
   const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
   Your primary objective is to provide a specific ecological audit for a lake requested by the user. 
   Use Google Search to locate the absolute latest data for that specific basin.
   
-  If the user asks about a new lake, find its specific coordinates, town, and current water metrics.
-  
-  Note: Many Maine lakes (Auburn, China, Great Pond, etc.) utilize Imaging Flow Cytometry (FlowCam) for phytoplankton biovolume tracking. If you find biovolume data (um3/mL) or specific taxa counts, include them in the answer.
-  
   Format your response STRICTLY as a JSON object:
   {
-    "answer": "A 2-3 sentence technical ecological summary focused on the lake being searched. Mention FlowCam monitoring if relevant.",
+    "answer": "A 2-3 sentence technical ecological summary.",
     "discoveredLakes": [
       {
         "name": "Full Proper Lake Name",
@@ -26,10 +33,7 @@ export const getLakeHealthInsights = async (prompt: string) => {
         "secchi": 5.0,
         "phosphorus": 10.0,
         "chlorophyll": 2.0,
-        "history": [
-           {"year": 2020, "secchi": 4.5, "phosphorus": 12.0},
-           {"year": 2024, "secchi": 5.5, "phosphorus": 8.0}
-        ]
+        "history": []
       }
     ]
   }`;
@@ -51,7 +55,6 @@ export const getLakeHealthInsights = async (prompt: string) => {
     })).filter((s: any) => s.uri) || [];
 
     const text = response.text || "{}";
-    // Sanitize in case the model wraps in markdown blocks despite MimeType
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const data = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
 
@@ -72,23 +75,26 @@ export const getLakeHealthInsights = async (prompt: string) => {
       })) || [],
       sources: sources.slice(0, 3)
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Health Error:", error);
+    let errorMessage = "Analysis interrupted.";
+    if (error.message?.includes('403')) errorMessage = "API Access Forbidden (403). Check project permissions.";
+    if (error.message?.includes('404')) errorMessage = "Model or Resource not found (404).";
+    
     return { 
-      text: "Analysis interrupted. Check API key or connection.", 
+      text: `${errorMessage} Technical details: ${error.message || 'Unknown error'}`, 
       discoveredLakes: [], 
       sources: [] 
     };
   }
 };
 
-/**
- * Fetches recent news regarding a specific lake using Google Search grounding.
- */
 export const getLakeNews = async (lakeName: string, town: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const prompt = `Search for recent environmental news, public health notices, water quality alerts, or community events related to ${lakeName} in ${town}, Maine for 2024. Summarize the top items.`;
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return { articles: [], sources: [] };
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `Search for recent environmental news related to ${lakeName} in ${town}, Maine for 2024.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -96,7 +102,7 @@ export const getLakeNews = async (lakeName: string, town: string) => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        systemInstruction: "You are a regional environmental news aggregator. Provide a brief summary of relevant articles.",
+        systemInstruction: "Aggregator of regional lake news.",
       },
     });
 
@@ -113,7 +119,6 @@ export const getLakeNews = async (lakeName: string, town: string) => {
       sources: sources.slice(0, 3)
     };
   } catch (error) {
-    console.error("Gemini News Error:", error);
     return { articles: [], sources: [] };
   }
 };
