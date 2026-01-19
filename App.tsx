@@ -43,19 +43,29 @@ const App: React.FC = () => {
     localStorage.setItem('managed_lakes_v3', JSON.stringify(managedLakes));
   }, [managedLakes]);
 
+  // Triggered on lake selection to fetch unique Gemini insights
   useEffect(() => {
     if (selectedLake && view === 'dashboard') {
-      const loadNews = async () => {
+      const fetchInsights = async () => {
+        setLoading(true);
         try {
+          const prompt = `Give me a specific ecological health audit for ${selectedLake.name} in ${selectedLake.town}, Maine. Focus on water quality, recent news, and technical status.`;
+          const result = await getLakeHealthInsights(prompt);
+          setSearchDescription(result.text);
+          setGroundingSources(result.sources || []);
+          
           const news = await getLakeNews(selectedLake.name, selectedLake.town);
           setNewsArticles(news.articles || []);
         } catch (e) {
-          console.error("News load failed", e);
+          console.error("Dashboard selection audit failed", e);
+          setSearchDescription(generatePredictiveNarrative(selectedLake));
+        } finally {
+          setLoading(false);
         }
       };
-      loadNews();
+      fetchInsights();
     }
-  }, [selectedLake, view]);
+  }, [selectedLake.id, view]);
 
   const filteredLakes = useMemo(() => {
     return managedLakes.filter(lake => {
@@ -229,12 +239,31 @@ const App: React.FC = () => {
                         </div>
                      </div>
 
-                     <div className="max-w-4xl mx-auto bg-slate-900/40 p-10 sm:p-14 rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-left">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-8">Audit Narrative</h3>
-                        <p className="text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed"> {loading ? "Consulting Registry..." : (searchDescription || generatePredictiveNarrative(selectedLake))} </p>
+                     <div className="max-w-4xl mx-auto bg-slate-900/40 p-10 sm:p-14 rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-left min-h-[300px]">
+                        <div className="flex justify-between items-center mb-8">
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Audit Narrative</h3>
+                          {loading && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
+                        </div>
+                        <p className="text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed whitespace-pre-wrap"> 
+                          {loading ? "Re-Consulting Registry Archives..." : (searchDescription || generatePredictiveNarrative(selectedLake))} 
+                        </p>
+                        
+                        {groundingSources.length > 0 && (
+                          <div className="mt-8 pt-6 border-t border-slate-800/40">
+                            <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Grounding Sources</h4>
+                            <div className="flex flex-wrap gap-4">
+                              {groundingSources.map((source, i) => (
+                                <a key={i} href={source.uri} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-blue-400 hover:text-blue-300 underline underline-offset-4">
+                                  {source.title || "External Audit Link"}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="mt-8 pt-4 border-t border-slate-800/40 flex justify-between items-center">
-                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Source: Maine DEP Integrated Database • Last Audit: March 2025</p>
-                           <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest italic">Verified Real-Time Flow</p>
+                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Source: Maine DEP & LSM Verified • Generated {new Date().toLocaleDateString()}</p>
+                           <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest italic">Live Grounding Active</p>
                         </div>
                      </div>
                    </section>

@@ -22,14 +22,26 @@ export const getLakeHealthInsights = async (prompt: string) => {
   const ai = new GoogleGenAI({ apiKey });
   
   const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
-  Your primary objective is to provide a specific ecological audit for a lake requested by the user. 
-  Use Google Search to locate the absolute latest data for that specific basin from Maine DEP (Department of Environmental Protection) or VLMP (Volunteer Lake Monitoring Program).
+  Your objective is to provide a unique, site-specific ecological audit for the lake requested.
   
-  CRITICAL: If the user searches for a lake, you MUST return the lake details in the 'discoveredLakes' array.
+  DIVERSITY REQUIREMENT: 
+  Each narrative MUST be unique. Avoid generic templates. 
+  Cross-reference Google Search results from:
+  1. Maine DEP (Department of Environmental Protection) technical reports.
+  2. LSM (Lake Stewards of Maine) volunteer observations.
+  3. Regional news (e.g., Portland Press Herald, Bangor Daily News) for local events like algae blooms, dam repairs, or conservation grants.
+  4. Academic studies from the University of Maine if available.
+
+  CONTENT STRUCTURE:
+  - Start with a layman's "Health Snapshot" (High School level).
+  - Follow with a "Deep Technical Audit" using specific metrics found (Secchi, P, Chl-a, etc.).
+  - Mention specific regional threats (e.g., Variable Leaf Milfoil in the Lakes Region).
+  
+  CRITICAL: If the user searches for a lake, return the lake details in the 'discoveredLakes' array.
   
   Format your response STRICTLY as a JSON object:
   {
-    "answer": "A 2-3 sentence technical ecological summary focusing on recent findings.",
+    "answer": "A robust, 4-6 sentence unique narrative combining accessible and technical insights.",
     "discoveredLakes": [
       {
         "name": "Full Proper Lake Name",
@@ -116,7 +128,7 @@ export const getLakeNews = async (lakeName: string, town: string) => {
   if (!apiKey) return { articles: [], sources: [] };
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = `Search for recent environmental news related to ${lakeName} in ${town}, Maine for 2024.`;
+  const prompt = `Provide the most recent specific news or environmental status updates for ${lakeName} in ${town}, Maine. Focus on events within the last 24 months.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -124,7 +136,7 @@ export const getLakeNews = async (lakeName: string, town: string) => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        systemInstruction: "Aggregator of regional lake news.",
+        systemInstruction: "Aggregator of site-specific regional lake news.",
       },
     });
 
