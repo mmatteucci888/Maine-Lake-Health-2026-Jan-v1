@@ -19,11 +19,11 @@ const CustomTooltip = ({ active, payload, label, unit, color }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl shadow-xl">
-        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Cycle: {label}</p>
+        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-2">Cycle: {label}</p>
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
           <p className="text-xs font-black text-white">
-            {payload[0].value} <span className="text-[9px] text-slate-500 uppercase tracking-widest">{unit}</span>
+            {payload[0].value} <span className="text-[9px] text-slate-400 uppercase tracking-widest">{unit}</span>
           </p>
         </div>
       </div>
@@ -48,7 +48,7 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
       <div className="mb-6">
         <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{title}</h4>
         <div className="flex justify-between items-center mt-2">
-           <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{citation}</p>
+           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{citation}</p>
            <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">{dateRange}</p>
         </div>
       </div>
@@ -56,8 +56,8 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.2} />
-            <XAxis dataKey="year" tick={{fontSize: 9, fill: '#64748b', fontWeight: 'bold'}} stroke="transparent" />
-            <YAxis stroke="transparent" tick={{fontSize: 10, fill: '#64748b', fontWeight: 'bold'}} />
+            <XAxis dataKey="year" tick={{fontSize: 9, fill: '#94a3b8', fontWeight: 'bold'}} stroke="transparent" />
+            <YAxis stroke="transparent" tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 'bold'}} />
             <Tooltip content={<CustomTooltip unit={unit} color={color} />} />
             <Line 
               type="monotone" 
@@ -69,6 +69,9 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
             />
           </LineChart>
         </ResponsiveContainer>
+      </div>
+      <div className="mt-4 pt-2 border-t border-slate-800/50">
+         <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest italic">Node Sync: MDEP-ARCHIVE-V2 • Verified 2025</p>
       </div>
     </div>
   );

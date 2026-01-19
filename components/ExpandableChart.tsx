@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface ExpandableChartProps {
   children: React.ReactNode;
@@ -8,6 +8,18 @@ interface ExpandableChartProps {
 
 const ExpandableChart: React.FC<ExpandableChartProps> = ({ children, title }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Prevent background scrolling when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isExpanded]);
 
   return (
     <>
@@ -22,27 +34,31 @@ const ExpandableChart: React.FC<ExpandableChartProps> = ({ children, title }) =>
       </div>
 
       {isExpanded && (
-        <div className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col animate-in fade-in duration-300">
-          <header className="flex justify-between items-center px-8 py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md shrink-0">
-            <div>
-              <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">{title}</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">Full-Scale Diagnostic Overlay // High Fidelity Output</p>
+        <div className="fixed inset-0 z-[5000] bg-slate-950 flex flex-col animate-in fade-in duration-300">
+          {/* Close Button - Persistent Upper Right */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+            className="fixed top-8 right-8 z-[6000] px-6 py-4 rounded-2xl bg-white text-slate-950 hover:bg-blue-500 hover:text-white transition-all shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(255,255,255,0.2)] border-2 border-white flex items-center gap-3 group scale-100 hover:scale-105 active:scale-95"
+            aria-label="Close Analysis"
+          >
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Close Analysis</span>
+            <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center text-white group-hover:bg-white group-hover:text-slate-950 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </div>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
-              className="px-6 py-3 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-all shadow-xl border border-slate-700 flex items-center gap-3 group"
-            >
-              <span className="text-[10px] font-black uppercase tracking-widest">Close Analysis</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-90 transition-transform"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </button>
-          </header>
-          
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-16 bg-slate-950">
-            <div className="max-w-7xl mx-auto bg-slate-900/30 rounded-[3rem] p-10 lg:p-14 border border-slate-800/50 shadow-2xl min-h-fit">
-               {children}
+          </button>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-20 bg-slate-950 relative">
+            <div className="max-w-7xl mx-auto mb-10">
+              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">{title}</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-2 mb-12">High Fidelity Ecological Projection // System Audit</p>
+              
+              <div className="bg-slate-900/30 rounded-[3rem] p-10 lg:p-14 border border-slate-800/50 shadow-2xl min-h-fit">
+                {children}
+              </div>
             </div>
-            <footer className="mt-12 mb-12 text-center">
-              <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.6em]">System Audit End • High Resolution Ecological Projection</p>
+            
+            <footer className="mt-20 mb-12 text-center opacity-30">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.6em]">Audit Termination • Secure Data Stream • Q1 2025</p>
             </footer>
           </div>
         </div>
