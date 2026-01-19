@@ -15,7 +15,11 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
         {/* Left Col: Biovolume Metric */}
         <div className="space-y-8">
           <div>
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Automated Imaging Audit</h3>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Automated Imaging Audit</h3>
+              <div className="h-px w-8 bg-slate-800" />
+              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Sensor: FC-8100</span>
+            </div>
             <h4 className="text-3xl font-black text-white uppercase italic tracking-tighter">Particle Biovolume</h4>
           </div>
 
@@ -32,10 +36,15 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-800/50">
+          <div className="pt-6 border-t border-slate-800/50 space-y-4">
              <p className="text-[11px] text-slate-400 leading-relaxed max-w-sm">
                High-resolution FlowCam imaging identifies the total 3D biovolume of suspended solids and phytoplankton, providing a more accurate biomass proxy than chlorophyll-a alone.
              </p>
+             <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800/50">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Data Provenance</p>
+                <p className="text-[10px] font-bold text-slate-300">Yokogawa Fluid Imaging FlowCam 8100</p>
+                <p className="text-[9px] font-medium text-slate-500 italic mt-0.5">VisualSpreadsheet v5.2 / 10X Field of View</p>
+             </div>
           </div>
         </div>
 
@@ -68,6 +77,10 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
                    </div>
                 </div>
               ))}
+           </div>
+           
+           <div className="mt-4 text-center">
+              <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Spectral Identification Algorithm v4.1</p>
            </div>
         </div>
       </div>

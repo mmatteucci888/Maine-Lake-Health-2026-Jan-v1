@@ -18,7 +18,7 @@ import { generatePredictiveNarrative, calculateTSI, getTrophicLabel } from './ut
 
 const App: React.FC = () => {
   const [managedLakes, setManagedLakes] = useState<LakeData[]>(() => {
-    const saved = localStorage.getItem('managed_lakes_v2');
+    const saved = localStorage.getItem('managed_lakes_v3');
     return saved ? JSON.parse(saved) : LAKES_DATA;
   });
   
@@ -35,22 +35,27 @@ const App: React.FC = () => {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSet, setCompareSet] = useState<Set<string>>(new Set());
 
-  const hasApiKey = !!process.env.API_KEY;
+  // Safe check for API key availability
+  const hasApiKey = typeof process !== 'undefined' && process.env && !!process.env.API_KEY;
   const laonLakeIds = ['pennesseewassee', 'little-pennesseewassee', 'sand-pond', 'north-pond'];
 
   useEffect(() => {
-    localStorage.setItem('managed_lakes_v2', JSON.stringify(managedLakes));
+    localStorage.setItem('managed_lakes_v3', JSON.stringify(managedLakes));
   }, [managedLakes]);
 
   useEffect(() => {
-    if (selectedLake) {
+    if (selectedLake && view === 'dashboard') {
       const loadNews = async () => {
-        const news = await getLakeNews(selectedLake.name, selectedLake.town);
-        setNewsArticles(news.articles || []);
+        try {
+          const news = await getLakeNews(selectedLake.name, selectedLake.town);
+          setNewsArticles(news.articles || []);
+        } catch (e) {
+          console.error("News load failed", e);
+        }
       };
       loadNews();
     }
-  }, [selectedLake]);
+  }, [selectedLake, view]);
 
   const filteredLakes = useMemo(() => {
     return managedLakes.filter(lake => {
@@ -71,12 +76,13 @@ const App: React.FC = () => {
 
   const handleLakeInteraction = (lake: LakeData) => {
     if (isCompareMode) {
-      setCompareSet(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(lake.id)) newSet.delete(lake.id);
-        else newSet.add(lake.id);
-        return newSet;
-      });
+      const next = new Set(compareSet);
+      if (next.has(lake.id)) {
+        next.delete(lake.id);
+      } else {
+        next.add(lake.id);
+      }
+      setCompareSet(next);
     } else {
       setSelectedLake(lake);
       setSearchDescription(""); 
@@ -130,7 +136,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-200">
-      {/* Sidebar - Fixed */}
       <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 no-print shrink-0 relative">
         <div className="p-6 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -177,7 +182,10 @@ const App: React.FC = () => {
           <div className="pt-6 space-y-3 pb-24">
             <div className="flex justify-between items-center px-4">
               <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Monitored Basins</h3>
-              <button onClick={() => setIsCompareMode(!isCompareMode)} className={`px-3 py-1 rounded-full text-[8px] font-black uppercase transition-all ${isCompareMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'}`}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsCompareMode(!isCompareMode); }} 
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase transition-all ${isCompareMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'}`}
+              >
                 {isCompareMode ? 'Cancel' : 'Compare'}
               </button>
             </div>
@@ -189,12 +197,11 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Floating Action Button for Comparison */}
         {isCompareMode && compareSet.size > 0 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full px-6 z-50 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full px-6 z-50">
             <button 
               onClick={executeComparison}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_20px_40px_rgba(37,99,235,0.4)] border border-blue-400/30 flex items-center justify-center gap-3 transition-all active:scale-95"
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-2xl border border-blue-400/30 flex items-center justify-center gap-3 transition-all active:scale-95"
             >
               <span className="text-[10px] font-black uppercase tracking-widest">Analyze {compareSet.size} Basins</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -203,11 +210,8 @@ const App: React.FC = () => {
         )}
       </aside>
 
-      {/* Main Panel */}
       <main className="flex-1 flex flex-col relative bg-slate-950 overflow-hidden">
         <div className="scanline" />
-        
-        {/* Scrollable Content Pane */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
           {view === 'dashboard' ? (
             <div className="p-8 lg:p-12 space-y-24 max-w-6xl mx-auto pb-40">
@@ -339,7 +343,6 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Global Registry Footer */}
         <footer className="p-6 border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl no-print shrink-0 z-50">
            <form onSubmit={handleSearch} className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">

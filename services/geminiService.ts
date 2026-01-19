@@ -1,13 +1,19 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  return null;
+};
+
 export const getLakeHealthInsights = async (prompt: string) => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = getApiKey();
   
   if (!apiKey) {
-    console.error("API_KEY is missing from environment variables.");
     return { 
-      text: "Connection Error: API Key not found. If you are on mobile, please ensure the environment is correctly configured or use a desktop browser.", 
+      text: "Connection Error: API Key not found. Please ensure the environment is correctly configured.", 
       discoveredLakes: [], 
       sources: [] 
     };
@@ -106,7 +112,7 @@ export const getLakeHealthInsights = async (prompt: string) => {
 };
 
 export const getLakeNews = async (lakeName: string, town: string) => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) return { articles: [], sources: [] };
 
   const ai = new GoogleGenAI({ apiKey });
