@@ -54,7 +54,7 @@ const App: React.FC = () => {
     setAiStatus('syncing');
     setRetryCountdown(null);
     try {
-      const prompt = query || `Give me a specific ecological health audit for ${lake.name} in ${lake.town}, Maine. Focus on water quality, recent news, and technical status.`;
+      const prompt = query || `Give me a specific ecological health audit for ${lake?.name || 'this lake'} in ${lake?.town || 'Maine'}. Focus on water quality, recent news, and technical status.`;
       const result = await getLakeHealthInsights(
         prompt, 
         lake?.id, 
@@ -102,8 +102,8 @@ const App: React.FC = () => {
   }, [selectedLake?.id, view]);
 
   const filteredLakes = useMemo(() => {
-    if (!Array.isArray(managedLakes)) return [];
-    return managedLakes.filter(lake => {
+    const safeLakes = Array.isArray(managedLakes) ? managedLakes : [];
+    return safeLakes.filter(lake => {
       if (!lake) return false;
       if (selectedLake && selectedLake.id === lake.id) return true;
       if (!lake.coordinates) return false;
@@ -173,19 +173,34 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar relative">
           <nav className="space-y-1 px-1 mt-4">
-            <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'dashboard' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
+            <button onClick={() => { setView('dashboard'); setIsCompareMode(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'dashboard' && !isCompareMode ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
               <Icons.Info /> <span className="text-[10px] font-black uppercase tracking-widest">Unified Audit</span>
             </button>
-            <button onClick={() => setView('map')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'map' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
+            <button onClick={() => { setIsCompareMode(true); setView('dashboard'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${isCompareMode ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg> 
+              <span className="text-[10px] font-black uppercase tracking-widest">Compare Mode</span>
+            </button>
+            <button onClick={() => { setView('map'); setIsCompareMode(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'map' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
               <Icons.MapPin /> <span className="text-[10px] font-black uppercase tracking-widest">Biosecurity Map</span>
             </button>
-            <button onClick={() => setView('cluster')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'cluster' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
+            <button onClick={() => { setView('cluster'); setIsCompareMode(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${view === 'cluster' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-400 border-transparent hover:bg-slate-800'}`}>
               <Icons.Microscope /> <span className="text-[10px] font-black uppercase tracking-widest">Niche Analysis</span>
             </button>
           </nav>
 
           <div className="pt-6 space-y-3 pb-24">
-            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] px-4">Monitored Basins</h3>
+            <div className="flex justify-between items-center px-4">
+              <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Monitored Basins</h3>
+              {isCompareMode && (
+                <button 
+                  onClick={() => setView('compare')}
+                  disabled={compareSet.size < 2}
+                  className="px-3 py-1 bg-blue-600 text-[8px] font-black uppercase rounded-lg disabled:opacity-30"
+                >
+                  Run Audit ({compareSet.size})
+                </button>
+              )}
+            </div>
             <div className="space-y-2 px-1">
               {Array.isArray(filteredLakes) && filteredLakes.map(lake => (
                 <LakeCard 
