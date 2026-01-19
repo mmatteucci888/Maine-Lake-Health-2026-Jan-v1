@@ -1,6 +1,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+const CACHE_KEY_PREFIX = "lake_audit_cache_";
+const CACHE_TTL = 60 * 60 * 1000; // 1 Hour cache for narratives
+
 const getApiKey = () => {
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
     return process.env.API_KEY;
@@ -8,57 +11,48 @@ const getApiKey = () => {
   return null;
 };
 
-export const getLakeHealthInsights = async (prompt: string) => {
+const getCachedNarrative = (lakeId: string) => {
+  const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${lakeId}`);
+  if (!cached) return null;
+  const { timestamp, data } = JSON.parse(cached);
+  if (Date.now() - timestamp > CACHE_TTL) return null;
+  return data;
+};
+
+const setCachedNarrative = (lakeId: string, data: any) => {
+  localStorage.setItem(`${CACHE_KEY_PREFIX}${lakeId}`, JSON.stringify({
+    timestamp: Date.now(),
+    data
+  }));
+};
+
+export const getLakeHealthInsights = async (prompt: string, lakeId?: string) => {
+  // 1. Check Cache First
+  if (lakeId) {
+    const cached = getCachedNarrative(lakeId);
+    if (cached) return cached;
+  }
+
   const apiKey = getApiKey();
-  
   if (!apiKey) {
-    return { 
-      text: "Connection Error: API Key not found. Please ensure the environment is correctly configured.", 
-      discoveredLakes: [], 
-      sources: [] 
-    };
+    throw new Error("API Key Missing");
   }
 
   const ai = new GoogleGenAI({ apiKey });
   
   const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
-  Your objective is to provide a unique, site-specific ecological audit for the lake requested.
+  Your objective is to provide a unique, site-specific ecological audit.
   
   DIVERSITY REQUIREMENT: 
-  Each narrative MUST be unique. Avoid generic templates. 
-  Cross-reference Google Search results from:
-  1. Maine DEP (Department of Environmental Protection) technical reports.
-  2. LSM (Lake Stewards of Maine) volunteer observations.
-  3. Regional news (e.g., Portland Press Herald, Bangor Daily News) for local events like algae blooms, dam repairs, or conservation grants.
-  4. Academic studies from the University of Maine if available.
+  Each narrative MUST be unique. Cross-reference results from:
+  1. Maine DEP reports.
+  2. LSM volunteer observations.
+  3. Regional news (blooms, dam repairs, conservation).
 
-  CONTENT STRUCTURE:
-  - Start with a layman's "Health Snapshot" (High School level).
-  - Follow with a "Deep Technical Audit" using specific metrics found (Secchi, P, Chl-a, etc.).
-  - Mention specific regional threats (e.g., Variable Leaf Milfoil in the Lakes Region).
-  
-  CRITICAL: If the user searches for a lake, return the lake details in the 'discoveredLakes' array.
-  
   Format your response STRICTLY as a JSON object:
   {
     "answer": "A robust, 4-6 sentence unique narrative combining accessible and technical insights.",
-    "discoveredLakes": [
-      {
-        "name": "Full Proper Lake Name",
-        "town": "Town Name",
-        "lat": 44.2, 
-        "lng": -70.5,
-        "quality": "Excellent/Good/Fair/Poor",
-        "secchi": 5.0,
-        "phosphorus": 10.0,
-        "chlorophyll": 2.0,
-        "history": [
-          {"year": 2021, "secchi": 5.2, "phosphorus": 9.8},
-          {"year": 2022, "secchi": 5.0, "phosphorus": 10.2},
-          {"year": 2023, "secchi": 5.1, "phosphorus": 10.0}
-        ]
-      }
-    ]
+    "discoveredLakes": []
   }`;
 
   try {
@@ -81,17 +75,14 @@ export const getLakeHealthInsights = async (prompt: string) => {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const data = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
 
-    return {
+    const result = {
       text: data.answer || "Audit complete.",
       discoveredLakes: data.discoveredLakes?.map((l: any) => ({
         id: l.name.toLowerCase().replace(/\s+/g, '-'),
         name: l.name,
         town: l.town || 'Maine',
         zipCode: "00000",
-        coordinates: { 
-          lat: l.lat || 44.2139, 
-          lng: l.lng || -70.5281 
-        },
+        coordinates: { lat: l.lat || 44.2, lng: l.lng || -70.5 },
         waterQuality: l.quality || 'Good',
         lastSecchiDiskReading: l.secchi || 5.0,
         phosphorusLevel: l.phosphorus || 10.0,
@@ -113,13 +104,17 @@ export const getLakeHealthInsights = async (prompt: string) => {
       })) || [],
       sources: sources.slice(0, 3)
     };
+
+    // Store in cache for next time
+    if (lakeId) setCachedNarrative(lakeId, result);
+    
+    return result;
   } catch (error: any) {
-    console.error("Gemini Health Error:", error);
-    return { 
-      text: `Analysis encountered an error: ${error.message || 'Unknown error'}`, 
-      discoveredLakes: [], 
-      sources: [] 
-    };
+    // If rate limited, throw a specific error that the UI can catch to show a local fallback
+    if (error.message?.includes("429") || error.message?.includes("busy")) {
+       throw new Error("RATE_LIMIT_REACHED");
+    }
+    throw error;
   }
 };
 
@@ -128,7 +123,7 @@ export const getLakeNews = async (lakeName: string, town: string) => {
   if (!apiKey) return { articles: [], sources: [] };
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = `Provide the most recent specific news or environmental status updates for ${lakeName} in ${town}, Maine. Focus on events within the last 24 months.`;
+  const prompt = `Provide recent specific news for ${lakeName} in ${town}, Maine.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -136,7 +131,7 @@ export const getLakeNews = async (lakeName: string, town: string) => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        systemInstruction: "Aggregator of site-specific regional lake news.",
+        systemInstruction: "Aggregator of regional lake news.",
       },
     });
 

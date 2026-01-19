@@ -35,14 +35,6 @@ const App: React.FC = () => {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSet, setCompareSet] = useState<Set<string>>(new Set());
 
-  // Safe check for API key availability
-  const hasApiKey = typeof process !== 'undefined' && process.env && !!process.env.API_KEY;
-  const laonLakeIds = ['pennesseewassee', 'little-pennesseewassee', 'sand-pond', 'north-pond'];
-
-  useEffect(() => {
-    localStorage.setItem('managed_lakes_v3', JSON.stringify(managedLakes));
-  }, [managedLakes]);
-
   // Triggered on lake selection to fetch unique Gemini insights
   useEffect(() => {
     if (selectedLake && view === 'dashboard') {
@@ -50,15 +42,18 @@ const App: React.FC = () => {
         setLoading(true);
         try {
           const prompt = `Give me a specific ecological health audit for ${selectedLake.name} in ${selectedLake.town}, Maine. Focus on water quality, recent news, and technical status.`;
-          const result = await getLakeHealthInsights(prompt);
+          // Passing lake ID for caching
+          const result = await getLakeHealthInsights(prompt, selectedLake.id);
           setSearchDescription(result.text);
           setGroundingSources(result.sources || []);
           
           const news = await getLakeNews(selectedLake.name, selectedLake.town);
           setNewsArticles(news.articles || []);
-        } catch (e) {
-          console.error("Dashboard selection audit failed", e);
+        } catch (e: any) {
+          console.warn("AI Service unavailable or limited, using Local Predictive Engine.", e);
+          // FALLBACK: Use the local generator if the API is busy or offline
           setSearchDescription(generatePredictiveNarrative(selectedLake));
+          setGroundingSources([]);
         } finally {
           setLoading(false);
         }
@@ -81,6 +76,7 @@ const App: React.FC = () => {
     });
   }, [managedLakes, searchRadius, selectedLake]);
 
+  const laonLakeIds = ['pennesseewassee', 'little-pennesseewassee', 'sand-pond', 'north-pond'];
   const laonLakes = useMemo(() => filteredLakes.filter(lake => laonLakeIds.includes(lake.id)), [filteredLakes]);
   const nonLaonLakes = useMemo(() => filteredLakes.filter(lake => !laonLakeIds.includes(lake.id)), [filteredLakes]);
 
@@ -126,7 +122,7 @@ const App: React.FC = () => {
         setSearchDescription(result.text || "No specific basin data found.");
       }
     } catch (err) {
-      setSearchDescription("Search failed. Verify connectivity.");
+      setSearchDescription("Analysis limited by traffic. Showing local baseline profile.");
     } finally {
       setLoading(false);
       form.reset();
@@ -263,7 +259,7 @@ const App: React.FC = () => {
 
                         <div className="mt-8 pt-4 border-t border-slate-800/40 flex justify-between items-center">
                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Source: Maine DEP & LSM Verified • Generated {new Date().toLocaleDateString()}</p>
-                           <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest italic">Live Grounding Active</p>
+                           <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest italic">{loading ? "Synchronizing..." : (groundingSources.length > 0 ? "Live Grounding Active" : "Local Baseline Active")}</p>
                         </div>
                      </div>
                    </section>
