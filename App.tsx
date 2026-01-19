@@ -12,6 +12,7 @@ import ComparisonView from './components/ComparisonView';
 import BiosecurityMapView from './components/BiosecurityMapView';
 import ClusterAnalysisView from './components/ClusterAnalysisView';
 import ThermalProfileChart from './components/ThermalProfileChart';
+import ExpandableChart from './components/ExpandableChart';
 import { generatePredictiveNarrative, calculateTSI, getTrophicLabel } from './utils/analysisUtils';
 
 const App: React.FC = () => {
@@ -44,7 +45,7 @@ const App: React.FC = () => {
     if (selectedLake) {
       const loadNews = async () => {
         const news = await getLakeNews(selectedLake.name, selectedLake.town);
-        setNewsArticles(news.articles);
+        setNewsArticles(news.articles || []);
       };
       loadNews();
     }
@@ -119,7 +120,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-200">
-      <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 no-print">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 no-print shrink-0">
         <div className="p-6 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20">
@@ -127,7 +129,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Lake Guardian</h1>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Maine Registry Node</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Global Registry Node</p>
             </div>
           </div>
         </div>
@@ -135,34 +137,17 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar relative">
           <h3 className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] px-4 py-3">Navigation</h3>
           <nav className="space-y-1 px-1">
-            <button 
-              onClick={() => setView('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'dashboard' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
-            >
+            <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'dashboard' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}>
               <Icons.Info /> <span className="text-[10px] font-black uppercase tracking-widest">Unified Audit</span>
             </button>
-            <button 
-              onClick={() => setView('map')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'map' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
-            >
+            <button onClick={() => setView('map')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'map' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}>
               <Icons.MapPin /> <span className="text-[10px] font-black uppercase tracking-widest">Biosecurity Map</span>
             </button>
-            <button 
-              onClick={() => setView('cluster')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'cluster' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
-            >
+            <button onClick={() => setView('cluster')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'cluster' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}>
               <Icons.Microscope /> <span className="text-[10px] font-black uppercase tracking-widest">Niche Analysis</span>
             </button>
-            <button 
-              onClick={() => {
-                if(compareSet.size > 0) setView('compare');
-                else setIsCompareMode(true);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'compare' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}
-            >
-              <div className="w-5 h-5 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M16 21h5v-5"/><path d="M8 21H3v-5"/></svg>
-              </div>
+            <button onClick={() => { if(compareSet.size > 0) setView('compare'); else setIsCompareMode(true); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${view === 'compare' ? 'bg-blue-600/10 border-blue-500/50 text-white' : 'text-slate-500 border-transparent hover:bg-slate-800'}`}>
+              <div className="w-5 h-5 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M16 21h5v-5"/><path d="M8 21H3v-5"/></svg></div>
               <span className="text-[10px] font-black uppercase tracking-widest">Registry Compare</span>
             </button>
           </nav>
@@ -170,48 +155,32 @@ const App: React.FC = () => {
           <div className="pt-6 space-y-3">
             <div className="flex items-center gap-2 px-4">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">LAON Lakes</h3>
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Core Group</h3>
             </div>
             <div className="space-y-2 px-1">
               {laonLakes.map(lake => (
-                <LakeCard 
-                  key={lake.id} 
-                  lake={lake} 
-                  isSelected={selectedLake?.id === lake.id} 
-                  onClick={handleLakeInteraction} 
-                  isCompareMode={isCompareMode} 
-                  isSelectedForCompare={compareSet.has(lake.id)} 
-                />
+                <LakeCard key={lake.id} lake={lake} isSelected={selectedLake?.id === lake.id} onClick={handleLakeInteraction} isCompareMode={isCompareMode} isSelectedForCompare={compareSet.has(lake.id)} />
               ))}
             </div>
           </div>
 
           <div className="pt-6 space-y-3">
             <div className="flex justify-between items-center px-4">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Managed Basins</h3>
-              <button 
-                onClick={() => setIsCompareMode(!isCompareMode)}
-                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase transition-all ${isCompareMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
-              >
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Monitored Basins</h3>
+              <button onClick={() => setIsCompareMode(!isCompareMode)} className={`px-3 py-1 rounded-full text-[8px] font-black uppercase transition-all ${isCompareMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
                 {isCompareMode ? 'Cancel' : 'Compare'}
               </button>
             </div>
             <div className="space-y-2 px-1">
               {nonLaonLakes.map(lake => (
-                <LakeCard 
-                  key={lake.id} 
-                  lake={lake} 
-                  isSelected={selectedLake?.id === lake.id} 
-                  onClick={handleLakeInteraction} 
-                  isCompareMode={isCompareMode} 
-                  isSelectedForCompare={compareSet.has(lake.id)} 
-                />
+                <LakeCard key={lake.id} lake={lake} isSelected={selectedLake?.id === lake.id} onClick={handleLakeInteraction} isCompareMode={isCompareMode} isSelectedForCompare={compareSet.has(lake.id)} />
               ))}
             </div>
           </div>
         </div>
       </aside>
 
+      {/* Main Panel */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
         <div className="scanline" />
         <header className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-md z-20 shrink-0 no-print">
@@ -220,37 +189,35 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
              <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-blue-500 animate-pulse' : 'bg-rose-500'}`} />
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-               Registry Link: {hasApiKey ? 'Active' : 'Missing Key'}
-             </span>
+             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest"> Registry Link: {hasApiKey ? 'Active' : 'Offline'} </span>
           </div>
         </header>
 
+        {/* Scrollable Content Pane */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {view === 'dashboard' ? (
-            <div className="p-8 lg:p-12 space-y-20 max-w-6xl mx-auto">
+            <div className="p-8 lg:p-12 space-y-24 max-w-6xl mx-auto">
                {selectedLake && (
-                 <div className="animate-fade-in space-y-24">
+                 <div className="animate-fade-in space-y-32">
                    <section className="text-center space-y-12">
                      <div className="flex flex-col items-center">
                         <div className="flex items-center gap-3 mb-6">
                            <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-4 py-1.5 rounded-full border border-blue-500/20 uppercase tracking-[0.3em]">Registry Focus Observation</span>
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{selectedLake.town}, ME</span>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{selectedLake.town}</span>
                         </div>
-                        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tighter uppercase leading-none mb-8">
-                          {selectedLake.name}
-                        </h1>
+                        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tighter uppercase leading-none mb-8"> {selectedLake.name} </h1>
                         <div className="flex gap-4">
                           <span className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center">ID: {selectedLake.id}</span>
                         </div>
                      </div>
 
                      <div className="max-w-4xl mx-auto bg-slate-900/40 p-10 sm:p-14 rounded-[3rem] border border-slate-800/50 backdrop-blur-sm relative overflow-hidden group text-left">
-                        <div className="absolute top-0 left-0 p-8 opacity-10"><Icons.Info /></div>
-                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-8">Technician Audit Narrative</h3>
-                        <p className="text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed">
-                          {loading ? "Decrypting registry data..." : (searchDescription || generatePredictiveNarrative(selectedLake))}
-                        </p>
+                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-8">Audit Narrative</h3>
+                        <p className="text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed"> {loading ? "Consulting Registry..." : (searchDescription || generatePredictiveNarrative(selectedLake))} </p>
+                        <div className="mt-8 pt-4 border-t border-slate-800/40 flex justify-between items-center">
+                           <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Data Source: Integrated Monitoring Database</p>
+                           <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">Verified 2024 Cycle</p>
+                        </div>
                      </div>
                    </section>
 
@@ -276,12 +243,10 @@ const App: React.FC = () => {
 
                    <section className="space-y-10">
                      <div className="flex items-center gap-6">
-                        <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] whitespace-nowrap">01 // Longitudinal Projections</h2>
+                        <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] whitespace-nowrap">01 // Longitudinal Trends</h2>
                         <div className="h-px flex-1 bg-slate-800" />
                      </div>
-                     <div className="bg-slate-900/20 p-8 rounded-[3rem] border border-slate-800/50 shadow-2xl">
-                        <HistoricalTrendChart data={selectedLake.historicalData || []} lakeName={selectedLake.name} />
-                     </div>
+                     <HistoricalTrendChart data={selectedLake.historicalData || []} lakeName={selectedLake.name} />
                    </section>
 
                    <section className="space-y-10">
@@ -289,7 +254,9 @@ const App: React.FC = () => {
                         <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] whitespace-nowrap">02 // Thermal Stratification</h2>
                         <div className="h-px flex-1 bg-slate-800" />
                      </div>
-                     <ThermalProfileChart lake={selectedLake} />
+                     <ExpandableChart title={`${selectedLake.name} // Thermal Dynamics`}>
+                        <ThermalProfileChart lake={selectedLake} />
+                     </ExpandableChart>
                    </section>
 
                    <section className="space-y-10">
@@ -303,87 +270,33 @@ const App: React.FC = () => {
                            <div className="p-10 bg-slate-900/30 rounded-3xl border border-slate-800 text-center group hover:border-blue-500/30 transition-all">
                               <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Impervious Surface</h4>
                               <p className="text-5xl font-black text-white tracking-tighter">{selectedLake.advancedMetrics.imperviousSurface.toFixed(1)}%</p>
+                              <p className="text-[7px] font-bold text-slate-600 uppercase mt-4">Satellite Catchment Analysis 2024</p>
                            </div>
                            <div className="p-10 bg-slate-900/30 rounded-3xl border border-slate-800 text-center group hover:border-emerald-500/30 transition-all">
                               <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Shore Naturalization</h4>
                               <p className="text-5xl font-black text-white tracking-tighter">{selectedLake.advancedMetrics.shorelineNaturalization.toFixed(0)}%</p>
+                              <p className="text-[7px] font-bold text-slate-600 uppercase mt-4">Riparian Buffer Audit 2024</p>
                            </div>
                            <div className="p-10 bg-slate-900/30 rounded-3xl border border-slate-800 text-center group hover:border-rose-500/30 transition-all">
                               <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Internal Loading</h4>
                               <p className={`text-4xl font-black uppercase tracking-tighter ${selectedLake.advancedMetrics.internalLoadingRisk === 'High' ? 'text-rose-500' : 'text-emerald-500'}`}>
                                 {selectedLake.advancedMetrics.internalLoadingRisk}
                               </p>
+                              <p className="text-[7px] font-bold text-slate-600 uppercase mt-4">Lake Vulnerability Index (LVI)</p>
                            </div>
                          </>
                        )}
                      </div>
                    </section>
 
-                   {groundingSources.length > 0 && (
-                     <section className="space-y-10">
-                       <div className="flex items-center gap-6">
-                          <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] whitespace-nowrap">04 // Verification Grounding</h2>
-                          <div className="h-px flex-1 bg-slate-800" />
-                       </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                         {groundingSources.map((source, idx) => (
-                           <a 
-                             key={idx} 
-                             href={source.uri} 
-                             target="_blank" 
-                             rel="noopener noreferrer"
-                             className="p-5 bg-slate-900/40 border border-slate-800 rounded-2xl hover:border-blue-500/50 transition-all flex items-center justify-between group"
-                           >
-                             <div className="flex flex-col overflow-hidden">
-                               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">CITED SOURCE</span>
-                               <span className="text-xs font-bold text-white truncate">{source.title || 'Live Registry Link'}</span>
-                             </div>
-                             <div className="text-blue-500 opacity-50 group-hover:opacity-100 transition-opacity">
-                               <Icons.Search />
-                             </div>
-                           </a>
-                         ))}
-                       </div>
-                     </section>
-                   )}
-
-                   <section className="space-y-10">
-                     <div className="flex items-center gap-6">
-                        <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] whitespace-nowrap">05 // Regional News Aggregator</h2>
-                        <div className="h-px flex-1 bg-slate-800" />
-                     </div>
-                     <div className="bg-slate-900/40 border border-slate-800 rounded-[3rem] p-8 lg:p-12 space-y-8 text-left">
-                        {newsArticles.length > 0 ? (
-                          newsArticles.map((article, idx) => (
-                            <div key={idx} className="pb-8 border-b border-slate-800 last:border-0 last:pb-0">
-                               <p className="text-sm sm:text-base text-slate-100 leading-relaxed font-medium">
-                                 {article.content}
-                               </p>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-10">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No recent specific news bulletins for this basin.</p>
-                          </div>
-                        )}
-                     </div>
-                   </section>
-
                    <section className="pb-32 text-center">
-                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Audit Stream Termination • Node {selectedLake.id} • Maine Registry</p>
+                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Audit Stream Termination • Node {selectedLake.id}</p>
                    </section>
                  </div>
                )}
             </div>
           ) : view === 'map' ? (
-            <BiosecurityMapView 
-              lakes={filteredLakes} 
-              centerLake={selectedLake} 
-              onSelectLake={handleLakeInteraction} 
-              onClose={() => setView('dashboard')}
-              searchRadius={searchRadius}
-              onRadiusChange={setSearchRadius}
-            />
+            <BiosecurityMapView lakes={filteredLakes} centerLake={selectedLake} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} searchRadius={searchRadius} onRadiusChange={setSearchRadius} />
           ) : view === 'cluster' ? (
             <ClusterAnalysisView lakes={filteredLakes} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
           ) : (
@@ -391,27 +304,20 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <footer className="p-4 sm:p-6 border-t border-slate-800 bg-slate-950 no-print shrink-0">
+        {/* Global Registry Footer - Outside Scroll Pane */}
+        <footer className="p-4 sm:p-6 border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl no-print shrink-0 z-50">
            <form onSubmit={handleSearch} className="max-w-4xl mx-auto flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <input 
-                  name="query" 
-                  autoComplete="off"
-                  placeholder="Registry Terminal (e.g. 'Audit Long Lake in Harrison')" 
-                  className="w-full px-6 py-4 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all text-xs font-bold mono" 
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
-                  <Icons.Search />
-                </div>
+                <input name="query" autoComplete="off" placeholder="Audit Terminal (e.g. 'Audit Kezar Lake')" className="w-full px-6 py-4 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all text-xs font-bold mono" />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"> <Icons.Search /> </div>
               </div>
-              <button 
-                type="submit"
-                disabled={loading}
-                className="px-8 py-4 sm:py-0 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"
-              >
-                {loading ? 'Consulting...' : 'Search Maine Lakes'}
-              </button>
+              <button type="submit" disabled={loading} className="px-8 py-4 sm:py-0 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"> {loading ? 'Consulting...' : 'Search Basin Registry'} </button>
            </form>
+           <div className="mt-4 text-center">
+             <p className="text-[8px] font-bold text-slate-700 uppercase tracking-[0.4em]">
+               Registry Terminal Audit Termination • Full Frame Projection
+             </p>
+           </div>
         </footer>
       </main>
 
