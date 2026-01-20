@@ -9,10 +9,6 @@ export interface ClusterResult {
   coordinates: { x: number; y: number };
 }
 
-/**
- * Recalibrated Maine-specific TSI (Trophic State Index)
- * Secchi-based TSI: 60 - 14.41 * ln(SD)
- */
 export const calculateTSI = (secchiDepth: number): number => {
   if (secchiDepth <= 0) return 100;
   const tsi = 60 - (14.41 * Math.log(secchiDepth));
@@ -20,46 +16,41 @@ export const calculateTSI = (secchiDepth: number): number => {
 };
 
 export const getTrophicLabel = (tsi: number): string => {
-  if (tsi < 35) return "Oligotrophic (High Clarity)";
-  if (tsi < 45) return "Mesotrophic (Balanced Productivity)";
-  if (tsi < 60) return "Eutrophic (High Nutrient Loading)";
-  return "Hypereutrophic (Severe Nutrient Saturation)";
+  if (tsi < 35) return "Oligotrophic (High Transparency)";
+  if (tsi < 45) return "Mesotrophic (Moderate Productivity)";
+  if (tsi < 60) return "Eutrophic (Increased Nutrient Loading)";
+  return "Hypereutrophic (Severe Enrichment)";
 };
 
-/**
- * Synthesizes a unique, data-driven fallback narrative for a general audience.
- * Uses lake metrics to ensure "Pennesseewassee" sounds different from "Sebago".
- */
 const generateAccessibleSummary = (lake: LakeData): string => {
   const tsi = calculateTSI(lake.lastSecchiDiskReading);
   const name = lake.name;
   const town = lake.town;
   
-  // Create a pseudo-random seed based on the lake name to vary sentence structures
   const seed = name.length % 3;
 
   const clarityQualifiers = [
-    `The transparency of ${name} remains high, offering deep visibility that's ideal for both recreation and native aquatic life.`,
-    `${name} continues to show stable water clarity, maintaining the characteristic beauty of the ${town} region.`,
-    `Current observations at ${name} confirm a healthy aquatic environment with excellent light penetration.`
+    `Transparency levels at ${name} remain significantly high, indicating minimal planktonic biomass and high light penetration.`,
+    `${name} exhibits stabilized water clarity consistent with high-altitude or low-runoff basins in the ${town} region.`,
+    `Current observations confirm ${name} is characterized by exceptional transparency and low turbidity.`
   ];
 
   const balancedQualifiers = [
-    `In ${town}, ${name} maintains a productive and balanced ecosystem, supporting a healthy variety of plants and fish.`,
-    `${name} is currently in a steady biological state, where nutrient levels are effectively managed by the natural watershed.`,
-    `Monitoring data suggests ${name} is a vibrant habitat, with enough nutrients to fuel life without causing overgrowth.`
+    `The ${name} ecosystem demonstrates a stable mesotrophic state, with balanced nutrient cycling supported by the local ${town} watershed.`,
+    `Water quality metrics for ${name} indicate a moderate biological productivity level consistent with seasonal baseline expectations.`,
+    `${name} functions as a vibrant aquatic habitat where nutrient concentrations support native biodiversity without excessive algal growth.`
   ];
 
   const concernQualifiers = [
-    `${name} is showing signs of nutrient stress, which can lead to cloudier water and more frequent plant growth.`,
-    `Recent data for ${name} indicates that phosphorus levels are slightly elevated, which might impact swimming clarity this season.`,
-    `Residents near ${name} should be aware that the lake is processing more nutrients than usual, resulting in a greener tint.`
+    `${name} is currently exhibiting signs of nutrient enrichment, potentially resulting in decreased transparency and increased littoral vegetation.`,
+    `Environmental data for ${name} shows phosphorus levels are marginally elevated, impacting the overall trophic stability of the basin.`,
+    `The ${name} watershed is processing an increased nutrient load, leading to a transition toward a eutrophic state.`
   ];
 
   const criticalQualifiers = [
-    `${name} is currently facing significant challenges due to high nutrient levels, creating a risk for algae blooms.`,
-    `Water quality at ${name} is under pressure; high phosphorus levels are impacting the oxygen available for fish.`,
-    `Action is being taken at ${name} to manage severe nutrient saturation that has reduced visibility across the basin.`
+    `${name} is experiencing significant ecological pressure due to excessive nutrient saturation, increasing the probability of cyanobacteria proliferation.`,
+    `Water quality at ${name} is degraded; high nutrient loading is actively reducing hypolimnetic oxygen levels.`,
+    `${name} requires active watershed management to mitigate severe nutrient enrichment and restore transparency metrics.`
   ];
 
   let summary = "";
@@ -68,15 +59,14 @@ const generateAccessibleSummary = (lake: LakeData): string => {
   else if (tsi < 60) summary = concernQualifiers[seed];
   else summary = criticalQualifiers[seed];
 
-  // Add site-specific details to increase uniqueness
   if (lake.phosphorusLevel < 8) {
-    summary += ` The low phosphorus count (${lake.phosphorusLevel}ppb) is a key factor in preventing unwanted algae.`;
+    summary += ` A phosphorus concentration of ${lake.phosphorusLevel}ppb effectively limits nuisance algal development.`;
   } else if (lake.phosphorusLevel > 20) {
-    summary += ` The high phosphorus count (${lake.phosphorusLevel}ppb) suggests significant runoff from the surrounding landscape.`;
+    summary += ` The elevated phosphorus concentration (${lake.phosphorusLevel}ppb) indicates substantial runoff from the surrounding landscape.`;
   }
 
   if (lake.invasiveSpeciesStatus !== 'None detected') {
-    summary += ` Visitors should practice "Clean, Drain, Dry" to protect ${name} from further spread of invasive species.`;
+    summary += ` Implementation of clean-drain-dry protocols is critical to prevent further anthropogenic transport of invasive taxa into ${name}.`;
   }
 
   return summary;
@@ -91,22 +81,22 @@ export const generatePredictiveNarrative = (lake: LakeData): string => {
   let scientificProfile = "";
   
   if (metrics && Number(metrics.imperviousSurface) > 10) {
-    scientificProfile += `Catchment analysis indicates an elevated impervious surface density (${Number(metrics.imperviousSurface).toFixed(1)}%), accelerating nutrient transport. `;
+    scientificProfile += `Catchment analysis indicates an impervious surface density of ${Number(metrics.imperviousSurface).toFixed(1)}%, which correlates with accelerated nutrient transport. `;
   }
 
   if (metrics && Number(metrics.anoxiaDepth) < 6) {
-    scientificProfile += `Observed anoxic interface at ${Number(metrics.anoxiaDepth).toFixed(1)}m suggests significant hypolimnetic oxygen demand. `;
+    scientificProfile += `An anoxic interface detected at ${Number(metrics.anoxiaDepth).toFixed(1)}m suggests a high hypolimnetic oxygen demand. `;
   }
 
   if (flowCam) {
-    scientificProfile += `Particle analysis (${flowCam.samplingDate}) identified ${flowCam.dominantTaxa} as the dominant taxa, with cyanobacteria biovolume recorded at ${flowCam.taxaDistribution.cyanobacteria}%. `;
+    scientificProfile += `Particle imaging analysis from ${flowCam.samplingDate} identified ${flowCam.dominantTaxa} as the primary taxa, with a cyanobacteria biovolume of ${flowCam.taxaDistribution.cyanobacteria}%. `;
   } else {
-    scientificProfile += `Historical baseline models suggest a stable planktonic community typical of the ${lake.town} basin. `;
+    scientificProfile += `Historical modeling suggest a planktonic community distribution characteristic of the ${lake.town} region. `;
   }
 
-  scientificProfile += `Thermal profiles indicate characteristic seasonal stability with a metalimnetic interface responding to depth-specific temperature gradients. `;
+  scientificProfile += `Thermal profiles indicate seasonal stability with depth-specific temperature gradients typical of dimictic Maine ponds. `;
 
-  return `${simpleSummary}\n\nTechnical Audit: ${scientificProfile}The system currently exhibits a ${getTrophicLabel(tsi)} state based on verified transparency metrics.`;
+  return `${simpleSummary}\n\nScientific Profile: ${scientificProfile}The basin is currently categorized as ${getTrophicLabel(tsi)} based on verified transparency data.`;
 };
 
 export const performEcologicalClustering = (lakes: LakeData[]): ClusterResult[] => {

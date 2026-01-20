@@ -1,8 +1,8 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const CACHE_KEY_PREFIX = "lake_audit_pro_v3_";
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_KEY_PREFIX = "lake_audit_pro_v6_";
+const CACHE_TTL = 24 * 60 * 60 * 1000;
 
 const getCachedNarrative = (lakeId: string) => {
   try {
@@ -35,7 +35,6 @@ export const getLakeHealthInsights = async (
   retryCount = 0,
   onRetry?: (seconds: number) => void
 ): Promise<any> => {
-  // 1. Check Cache First
   if (lakeId && retryCount === 0) {
     const cached = getCachedNarrative(lakeId);
     if (cached) return { ...cached, isFromCache: true };
@@ -45,9 +44,17 @@ export const getLakeHealthInsights = async (
   if (!apiKey) throw new Error("API_KEY_MISSING");
 
   const ai = new GoogleGenAI({ apiKey });
-  const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
-  Provide a site-specific ecological audit. Use Google Search for recent news.
-  Response Format: JSON { "answer": string, "discoveredLakes": [] }`;
+  
+  const systemInstruction = `You are a Senior Limnological Consultant for Maine's Environmental Registry. 
+  Your task is to provide objective, site-specific ecological health audits.
+  
+  MANDATORY GUIDELINES:
+  1. Use ONLY third-person, clinical, and authoritative language. Do NOT use "I", "me", "my", "we", or "our".
+  2. For any lake requested (e.g., Moosehead Lake, Richardson Lake), retrieve specific water quality metrics including Secchi Disk transparency (meters) and Total Phosphorus (ppb).
+  3. Synthesize the findings into a professional report.
+  4. Ensure the output begins with the full, official name of the water body.
+  
+  Format: Professional scientific narrative. Do not use JSON. Cite URLs from MDEP, Lake Stewards of Maine, or relevant NGOs.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -55,8 +62,7 @@ export const getLakeHealthInsights = async (
       contents: prompt,
       config: {
         systemInstruction,
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json"
+        tools: [{ googleSearch: {} }]
       },
     });
 
@@ -65,13 +71,19 @@ export const getLakeHealthInsights = async (
       uri: chunk.web?.uri,
     })).filter((s: any) => s.uri) || [];
 
-    const text = response.text || "{}";
-    const data = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+    const text = response.text || "";
+    
+    // Improved extraction logic
+    const phosMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:ppb|ug\/L|phosphorus)/i);
+    const secchiMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:meters|m|clarity|secchi)/i);
 
     const result = {
-      text: data.answer || "Audit synchronized.",
-      discoveredLakes: data.discoveredLakes || [],
-      sources: sources.slice(0, 3),
+      text,
+      sources: sources.slice(0, 5),
+      extractedMetrics: {
+        phosphorus: phosMatch ? parseFloat(phosMatch[1]) : null,
+        secchi: secchiMatch ? parseFloat(secchiMatch[1]) : null
+      },
       timestamp: Date.now()
     };
 
@@ -79,19 +91,12 @@ export const getLakeHealthInsights = async (
     return result;
 
   } catch (error: any) {
-    // 2. Handle Quota/Rate Limits
-    const isRateLimit = error.message?.includes("429") || 
-                        error.message?.includes("quota") || 
-                        error.message?.includes("limit");
-    
+    const isRateLimit = error.message?.includes("429") || error.message?.includes("quota");
     if (isRateLimit && retryCount < 1) {
-      const waitTime = 5000; // 5 second cool-off
       if (onRetry) onRetry(5);
-      await sleep(waitTime);
+      await sleep(5000);
       return getLakeHealthInsights(prompt, lakeId, retryCount + 1, onRetry);
     }
-    
-    // If we still fail, throw so App.tsx can use local fallback
     throw error;
   }
 };

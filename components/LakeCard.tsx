@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { LakeData } from '../types';
-import { Icons, TARGET_ZIP } from '../constants';
+// Removed TARGET_ZIP import as it is not exported from constants.tsx
+import { Icons } from '../constants';
 
 interface LakeCardProps {
   lake: LakeData;
