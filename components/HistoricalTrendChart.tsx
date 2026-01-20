@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ExpandableChart from './ExpandableChart';
@@ -34,14 +33,24 @@ const CustomTooltip = ({ active, payload, label, unit, color }: any) => {
 
 const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeName }) => {
   const chartData = useMemo(() => {
-    return [...data]
-      .sort((a, b) => Number(a.year) - Number(b.year))
-      .slice(-12)
-      .map(d => ({
-        ...d,
-        chlorophyll: d.chlorophyll || parseFloat((d.phosphorus * 0.35 + (Math.random() * 0.5)).toFixed(1))
-      }));
+    // Sort ascending by year to ensure correct chronological order
+    const sorted = [...data].sort((a, b) => Number(a.year) - Number(b.year));
+    
+    // Limit to the most recent 10 years
+    const recent = sorted.slice(-10);
+
+    return recent.map(d => ({
+      ...d,
+      chlorophyll: d.chlorophyll || parseFloat((d.phosphorus * 0.35 + (Math.random() * 0.5)).toFixed(1))
+    }));
   }, [data]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (chartData.length === 0) return "No Data";
+    const start = chartData[0].year;
+    const end = chartData[chartData.length - 1].year;
+    return `${start}-${end} Audit`;
+  }, [chartData]);
 
   const ChartWidget = ({ type, title, dataKey, color, unit, citation, dateRange }: any) => (
     <div className="flex flex-col h-[340px] w-full p-8 bg-slate-900/40 rounded-3xl border border-slate-800 shadow-lg">
@@ -85,7 +94,7 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
           color="#3b82f6" 
           unit="m" 
           citation="Source: Lake Stewards of Maine" 
-          dateRange="2014-2024 Audit" 
+          dateRange={dateRangeLabel} 
         />
       </ExpandableChart>
 
@@ -96,7 +105,7 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
           color="#f43f5e" 
           unit="ppb" 
           citation="Source: MDEP Lake Monitoring" 
-          dateRange="Seasonal Baseline" 
+          dateRange={dateRangeLabel} 
         />
       </ExpandableChart>
 
@@ -107,7 +116,7 @@ const HistoricalTrendChart: React.FC<HistoricalTrendChartProps> = ({ data, lakeN
           color="#10b981" 
           unit="ppb" 
           citation="Source: ESM Spectral Analysis" 
-          dateRange="2024 Verification" 
+          dateRange={dateRangeLabel} 
         />
       </ExpandableChart>
     </div>
