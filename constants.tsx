@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { LakeData, EcologicalMetrics } from './types';
 
 export const NORWAY_MAINE_COORDS = { lat: 44.2139, lng: -70.5281 };
 export const MAINE_CENTER_COORDS = { lat: 45.2538, lng: -69.4455 };
 
-const generateHistory = (baseSecchi: number, basePhos: number) => {
+export const generateHistory = (baseSecchi: number, basePhos: number) => {
   const history = [];
   const startYear = 2016;
-  const endYear = 2024;
+  const endYear = 2025;
   for (let year = startYear; year <= endYear; year++) {
     const drift = (year - startYear) * 0.05;
     history.push({
@@ -20,7 +19,7 @@ const generateHistory = (baseSecchi: number, basePhos: number) => {
   return history;
 };
 
-const generateAdvancedMetrics = (quality: string): EcologicalMetrics => {
+export const generateAdvancedMetrics = (quality: string): EcologicalMetrics => {
   const isGood = quality === 'Excellent' || quality === 'Good';
   return {
     imperviousSurface: isGood ? 3.2 + Math.random() * 4 : 15.5 + Math.random() * 12,

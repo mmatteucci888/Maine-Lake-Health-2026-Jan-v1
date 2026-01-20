@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LAKES_DATA, Icons } from './constants';
+import { LAKES_DATA, Icons, generateHistory, generateAdvancedMetrics } from './constants';
 import { LakeData, GroundingSource } from './types';
 import { getLakeHealthInsights } from './services/geminiService';
 import LakeCard from './components/LakeCard';
@@ -14,7 +14,8 @@ import { generatePredictiveNarrative, calculateTSI, getTrophicLabel } from './ut
 const SESSION_KEY = 'lake_guardian_pro_v1';
 
 const App: React.FC = () => {
-  const [laonLakes] = useState<LakeData[]>(LAKES_DATA.slice(0, 10));
+  // Load full dataset for registry access
+  const [laonLakes] = useState<LakeData[]>(LAKES_DATA);
   
   const [discoveredLakes, setDiscoveredLakes] = useState<LakeData[]>(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
@@ -52,19 +53,24 @@ const App: React.FC = () => {
       setGroundingSources(result?.sources || []);
       
       if (!lake && result.extractedMetrics) {
+        const baseSecchi = result.extractedMetrics.secchi || 5.0;
+        const basePhos = result.extractedMetrics.phosphorus || 10.0;
+        const derivedQuality = baseSecchi > 6 ? 'Excellent' : baseSecchi > 4 ? 'Good' : 'Fair';
+
         const newLake: LakeData = {
           id: `ext-${Date.now()}`,
           name: queryText,
           town: "Registry Discovery",
           zipCode: "Maine Node",
           coordinates: { lat: 44.5, lng: -70.1 },
-          waterQuality: (result.extractedMetrics.secchi || 5) > 6 ? 'Excellent' : 'Good',
-          lastSecchiDiskReading: result.extractedMetrics.secchi || 5.0,
-          phosphorusLevel: result.extractedMetrics.phosphorus || 10.0,
-          chlorophyllLevel: (result.extractedMetrics.phosphorus || 10.0) * 0.3,
+          waterQuality: derivedQuality,
+          lastSecchiDiskReading: baseSecchi,
+          phosphorusLevel: basePhos,
+          chlorophyllLevel: parseFloat((basePhos * 0.3).toFixed(1)),
           invasiveSpeciesStatus: 'None detected',
           lastUpdated: '2025 AI-Sync',
-          historicalData: [],
+          historicalData: generateHistory(baseSecchi, basePhos),
+          advancedMetrics: generateAdvancedMetrics(derivedQuality),
           flowCamRecent: {
             totalBiovolume: 1500000.5,
             particleCount: 2500,
@@ -90,9 +96,13 @@ const App: React.FC = () => {
 
   const handleLakeInteraction = (lake: LakeData) => {
     if (view === 'compare') {
-      setCompareList(prev => 
-        prev.find(l => l.id === lake.id) ? prev.filter(l => l.id !== lake.id) : [...prev, lake]
-      );
+      setCompareList(prev => {
+        const exists = prev.find(l => l.id === lake.id);
+        if (exists) {
+            return prev.filter(l => l.id !== lake.id);
+        }
+        return [...prev, lake];
+      });
     } else {
       setSearchDescription("");
       setSelectedLake(lake);
@@ -143,6 +153,7 @@ const App: React.FC = () => {
             <button 
                 onClick={() => {
                     setView('compare');
+                    // Automatically add the currently viewed lake to comparison if list is empty
                     if (selectedLake && compareList.length === 0) setCompareList([selectedLake]);
                 }} 
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest ${view === 'compare' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
@@ -153,7 +164,10 @@ const App: React.FC = () => {
           </nav>
           
           <div className="space-y-3 pt-4">
-            <h3 className="text-[9px] font-black text-slate-500 uppercase px-4 tracking-[0.2em]">Registry Basins</h3>
+            <div className="flex items-center justify-between px-4">
+                 <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Registry Basins</h3>
+                 <span className="text-[8px] font-bold text-slate-600">{laonLakes.length} Loaded</span>
+            </div>
             {laonLakes.map(lake => (
               <LakeCard 
                 key={lake.id} 
