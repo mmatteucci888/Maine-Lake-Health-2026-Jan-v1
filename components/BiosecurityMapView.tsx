@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { LakeData } from '../types';
 
@@ -22,35 +21,36 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
   const [hoveredLake, setHoveredLake] = useState<LakeData | null>(null);
 
   const bounds = useMemo(() => {
-    if (lakes.length === 0) return { minLat: 44, maxLat: 45, minLng: -71, maxLng: -70 };
+    // If we have no lakes, default to Maine center
+    if (lakes.length === 0) return { minLat: 44, maxLat: 46, minLng: -71, maxLng: -67 };
     
-    const lats = lakes.map(l => l.coordinates.lat);
-    const lngs = lakes.map(l => l.coordinates.lng);
+    // 1. Calculate Centroid of the dataset
+    const sumLat = lakes.reduce((sum, lake) => sum + lake.coordinates.lat, 0);
+    const sumLng = lakes.reduce((sum, lake) => sum + lake.coordinates.lng, 0);
+    const centerLat = sumLat / lakes.length;
+    const centerLng = sumLng / lakes.length;
+
+    // 2. Determine Viewport Size based strictly on Slider Radius (Zoom)
+    // Approx conversions for Maine Latitudes (44-47N)
+    // 1 deg Lat ~= 69 miles
+    // 1 deg Lng ~= 49 miles (at 45deg N)
     
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    
-    // 20% Padding to ensure labels and markers stay safely within viewport bounds
-    const latRange = maxLat - minLat || 0.1;
-    const lngRange = maxLng - minLng || 0.1;
-    const latPadding = latRange * 0.2;
-    const lngPadding = lngRange * 0.2;
+    const latRadiusDeg = searchRadius / 69;
+    const lngRadiusDeg = searchRadius / 49;
 
     return {
-      minLat: minLat - latPadding,
-      maxLat: maxLat + latPadding,
-      minLng: minLng - lngPadding,
-      maxLng: maxLng + lngPadding
+      minLat: centerLat - latRadiusDeg,
+      maxLat: centerLat + latRadiusDeg,
+      minLng: centerLng - lngRadiusDeg,
+      maxLng: centerLng + lngRadiusDeg
     };
-  }, [lakes]);
+  }, [lakes, searchRadius]);
 
   const getPosition = (lat: number, lng: number) => {
     // Maps coordinates to percentage of parent container
     const x = ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 100;
     const y = 100 - ((lat - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * 100;
-    return { x: `${x}%`, y: `${y}%` };
+    return { x, y };
   };
 
   return (
@@ -70,21 +70,25 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
 
           <div className="h-10 w-px bg-slate-800 hidden md:block" />
 
-          {/* RADIUS SLIDER INTEGRATED HERE */}
-          <div className="flex flex-col min-w-[200px] pointer-events-auto">
+          {/* RADIUS SLIDER */}
+          <div className="flex flex-col min-w-[240px] pointer-events-auto">
              <div className="flex justify-between items-center mb-1.5 px-1">
-                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Scanning Radius</span>
+                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Viewport Scale (Zoom)</span>
                 <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{searchRadius}mi</span>
              </div>
              <input 
                 type="range" 
-                min="10" 
-                max="500" 
-                step="10" 
+                min="5" 
+                max="200" 
+                step="5" 
                 value={searchRadius} 
-                onChange={(e) => onRadiusChange(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                onInput={(e) => onRadiusChange(parseInt((e.target as HTMLInputElement).value))}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-colors"
               />
+             <div className="flex justify-between mt-1 px-0.5">
+                <span className="text-[8px] font-bold text-slate-600 uppercase">Micro</span>
+                <span className="text-[8px] font-bold text-slate-600 uppercase">Regional</span>
+             </div>
           </div>
         </div>
         
@@ -114,22 +118,25 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
         </div>
 
         {/* The Markers */}
-        <div className="absolute inset-0 m-12">
+        <div className="absolute inset-0 m-12 overflow-hidden">
           {lakes.map((lake) => {
             const pos = getPosition(lake.coordinates.lat, lake.coordinates.lng);
             const isThreat = lake.invasiveSpeciesStatus !== 'None detected';
             const isHovered = hoveredLake?.id === lake.id;
             
+            // Don't render if way off screen to keep DOM light
+            if (pos.x < -10 || pos.x > 110 || pos.y < -10 || pos.y > 110) return null;
+
             return (
               <div
                 key={lake.id}
                 className={`absolute transition-all duration-300 cursor-pointer ${isHovered ? 'z-50' : 'z-20'}`}
-                style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
+                style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
                 onMouseEnter={() => setHoveredLake(lake)}
                 onMouseLeave={() => setHoveredLake(null)}
                 onClick={() => onSelectLake(lake)}
               >
-                <div className="relative flex flex-col items-center">
+                <div className="relative flex flex-col items-center group">
                   <div className={`w-6 h-6 rounded-full border-4 flex items-center justify-center transition-all ${
                     isThreat 
                       ? 'bg-rose-500 border-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.4)] animate-pulse' 
@@ -138,8 +145,8 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
                     {isThreat && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                   </div>
 
-                  {/* Proportional Persistent Label */}
-                  <div className="mt-2 text-center pointer-events-none max-w-[120px]">
+                  {/* Proportional Persistent Label - Hides if zoomed out too far (radius > 100) unless hovered */}
+                  <div className={`mt-2 text-center pointer-events-none max-w-[120px] transition-opacity ${searchRadius > 100 && !isHovered ? 'opacity-0' : 'opacity-100'}`}>
                     <span className="text-[9px] font-black text-white uppercase tracking-tighter bg-slate-900/60 px-2 py-0.5 rounded backdrop-blur-sm border border-slate-800/50 block truncate">
                       {lake.name}
                     </span>
@@ -181,7 +188,7 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-slate-800" /><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Baseline Monitoring</span></div>
         </div>
         <div className="text-right">
-           <span className="text-[9px] font-black text-slate-200 uppercase tracking-[0.2em] italic">Full Regional Scale View • Fit-to-Viewport</span>
+           <span className="text-[9px] font-black text-slate-200 uppercase tracking-[0.2em] italic">Centroid-Based Zoom • {searchRadius}mi Radius</span>
         </div>
       </div>
     </div>

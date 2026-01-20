@@ -238,10 +238,14 @@ const App: React.FC = () => {
               {selectedLake && !loading && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Trophic Index</p>
+                    <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 relative overflow-hidden group">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Trophic State Index</p>
                       <p className="text-3xl font-black text-white">{tsiScore?.toFixed(1)} <span className="text-xs text-slate-500">TSI</span></p>
                       <p className="text-[8px] font-bold text-blue-500 uppercase mt-2">{getTrophicLabel(tsiScore || 0)}</p>
+                      <div className="absolute bottom-2 right-4 text-[7px] font-bold text-slate-700 uppercase tracking-tighter text-right opacity-60 group-hover:opacity-100 transition-opacity">
+                        <div>Method: Carlson (1977)</div>
+                        <div>Aligned: MDEP & EPA Stds</div>
+                      </div>
                     </div>
                     <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Clarity (Secchi)</p>
@@ -264,7 +268,13 @@ const App: React.FC = () => {
               )}
             </div>
           ) : view === 'map' ? (
-             <BiosecurityMapView lakes={[...LAKES_DATA, ...discoveredLakes]} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} searchRadius={searchRadius} onRadiusChange={setSearchRadius} />
+             <BiosecurityMapView 
+               lakes={[...LAKES_DATA, ...discoveredLakes]} 
+               onSelectLake={handleLakeInteraction} 
+               onClose={() => setView('dashboard')} 
+               searchRadius={searchRadius} 
+               onRadiusChange={(r) => setSearchRadius(r)} 
+             />
           ) : view === 'cluster' ? (
              <ClusterAnalysisView lakes={[...LAKES_DATA, ...discoveredLakes]} onSelectLake={handleLakeInteraction} onClose={() => setView('dashboard')} />
           ) : view === 'compare' ? (
