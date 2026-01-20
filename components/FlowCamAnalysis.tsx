@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FlowCamData } from '../types';
 
@@ -25,7 +24,7 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
 
           <div className="relative inline-block">
             <div className="text-7xl font-black text-white tracking-tighter leading-none">
-              {data.totalBiovolume.toLocaleString()}
+              {data.totalBiovolume.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
               <span className="text-lg text-slate-500 ml-4 font-bold tracking-normal uppercase">μm³/mL</span>
             </div>
             <div className="mt-4 flex items-center gap-3">
@@ -67,7 +66,7 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
                 <div key={item.label} className="space-y-2">
                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
                       <span className="text-slate-400">{item.label}</span>
-                      <span className="text-white">{item.val}%</span>
+                      <span className="text-white">{item.val.toFixed(1)}%</span>
                    </div>
                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                       <div 

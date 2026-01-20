@@ -61,10 +61,17 @@ const App: React.FC = () => {
           waterQuality: (result.extractedMetrics.secchi || 5) > 6 ? 'Excellent' : 'Good',
           lastSecchiDiskReading: result.extractedMetrics.secchi || 5.0,
           phosphorusLevel: result.extractedMetrics.phosphorus || 10.0,
-          chlorophyllLevel: 2.5,
+          chlorophyllLevel: (result.extractedMetrics.phosphorus || 10.0) * 0.3,
           invasiveSpeciesStatus: 'None detected',
           lastUpdated: '2025 AI-Sync',
-          historicalData: []
+          historicalData: [],
+          flowCamRecent: {
+            totalBiovolume: 1500000.5,
+            particleCount: 2500,
+            taxaDistribution: { cyanobacteria: 15.5, diatoms: 45.0, greenAlgae: 25.0, other: 14.5 },
+            dominantTaxa: 'Diatom Fragment',
+            samplingDate: '2025-01'
+          }
         };
         setDiscoveredLakes(prev => {
             const exists = prev.find(l => l.name.toLowerCase() === queryText.toLowerCase());
@@ -235,6 +242,18 @@ const App: React.FC = () => {
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Trophic Index</p>
                       <p className="text-3xl font-black text-white">{tsiScore?.toFixed(1)} <span className="text-xs text-slate-500">TSI</span></p>
                       <p className="text-[8px] font-bold text-blue-500 uppercase mt-2">{getTrophicLabel(tsiScore || 0)}</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Clarity (Secchi)</p>
+                      <p className="text-3xl font-black text-white">{selectedLake.lastSecchiDiskReading.toFixed(1)} <span className="text-xs text-slate-500">m</span></p>
+                    </div>
+                    <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Phosphorus</p>
+                      <p className="text-3xl font-black text-white">{selectedLake.phosphorusLevel.toFixed(1)} <span className="text-xs text-slate-500">ppb</span></p>
+                    </div>
+                    <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Chlorophyll-a</p>
+                      <p className="text-3xl font-black text-white">{selectedLake.chlorophyllLevel.toFixed(1)} <span className="text-xs text-slate-500">ppb</span></p>
                     </div>
                   </div>
 
