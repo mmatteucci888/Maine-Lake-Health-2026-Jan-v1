@@ -1,15 +1,8 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 const CACHE_KEY_PREFIX = "lake_audit_pro_v3_";
-const CACHE_TTL = 24 * 60 * 60 * 1000;
-
-const getApiKey = () => {
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    return process.env.API_KEY;
-  }
-  return null;
-};
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 const getCachedNarrative = (lakeId: string) => {
   try {
@@ -30,7 +23,7 @@ const setCachedNarrative = (lakeId: string, data: any) => {
       data
     }));
   } catch (e) {
-    console.warn("Storage full.");
+    console.warn("Storage quota exceeded locally.");
   }
 };
 
@@ -42,18 +35,18 @@ export const getLakeHealthInsights = async (
   retryCount = 0,
   onRetry?: (seconds: number) => void
 ): Promise<any> => {
+  // 1. Check Cache First
   if (lakeId && retryCount === 0) {
     const cached = getCachedNarrative(lakeId);
     if (cached) return { ...cached, isFromCache: true };
   }
 
-  const apiKey = getApiKey();
+  const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API_KEY_MISSING");
 
   const ai = new GoogleGenAI({ apiKey });
   const systemInstruction = `You are the Lead Limnologist for Maine's Great Ponds. 
-  Your objective is to provide a unique, site-specific ecological audit.
-  Diversity: Each narrative must be site-specific using Google Search for news/quality.
+  Provide a site-specific ecological audit. Use Google Search for recent news.
   Response Format: JSON { "answer": string, "discoveredLakes": [] }`;
 
   try {
@@ -86,33 +79,19 @@ export const getLakeHealthInsights = async (
     return result;
 
   } catch (error: any) {
-    const isRateLimit = error.message?.includes("429") || error.message?.includes("busy") || error.message?.includes("limit");
+    // 2. Handle Quota/Rate Limits
+    const isRateLimit = error.message?.includes("429") || 
+                        error.message?.includes("quota") || 
+                        error.message?.includes("limit");
     
-    if (isRateLimit && retryCount < 2) {
-      const waitTime = (Math.pow(2, retryCount + 1) * 3000) + (Math.random() * 2000);
-      if (onRetry) onRetry(Math.ceil(waitTime / 1000));
+    if (isRateLimit && retryCount < 1) {
+      const waitTime = 5000; // 5 second cool-off
+      if (onRetry) onRetry(5);
       await sleep(waitTime);
       return getLakeHealthInsights(prompt, lakeId, retryCount + 1, onRetry);
     }
+    
+    // If we still fail, throw so App.tsx can use local fallback
     throw error;
-  }
-};
-
-export const getLakeNews = async (lakeName: string, town: string): Promise<any> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return { articles: [], sources: [] };
-  const ai = new GoogleGenAI({ apiKey });
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Recent news for ${lakeName}, ${town}, Maine.`,
-      config: { tools: [{ googleSearch: {} }] },
-    });
-    return {
-      articles: (response.text || "").split('\n').filter(a => a.trim().length > 10).map(content => ({ content })),
-      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((c: any) => ({ title: c.web?.title, uri: c.web?.uri })).filter((s: any) => s.uri) || []
-    };
-  } catch {
-    return { articles: [], sources: [] };
   }
 };
