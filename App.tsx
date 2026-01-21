@@ -28,23 +28,28 @@ const App: React.FC = () => {
   const [groundingSources, setGroundingSources] = useState<GroundingSource[]>([]);
   const [view, setView] = useState<'dashboard' | 'map' | 'cluster' | 'compare'>('dashboard');
   const [compareBasket, setCompareBasket] = useState<string[]>([]);
+  
+  // Persistent Map State
+  const [searchRadius, setSearchRadius] = useState<number>(50);
+  
   const searchTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(discoveredLakes));
   }, [discoveredLakes]);
 
-  // Persistent LAON Core Lakes
+  // Section 1: LAON CORE BASINS - Permanent Sidebar List
   const coreLakes = useMemo(() => 
     allRegistryLakes.filter(l => CORE_LAON_IDS.includes(l.id)), 
     [allRegistryLakes]
   );
 
-  // Dynamic Discovery/Registry Section
+  // Section 2: SEARCH & DISCOVERY - Dynamically Filtered Registry
   const discoveryLakes = useMemo(() => {
     const others = allRegistryLakes.filter(l => !CORE_LAON_IDS.includes(l.id));
-    if (!searchQuery) return [...others, ...discoveredLakes];
-    return [...others, ...discoveredLakes].filter(l => 
+    const combined = [...others, ...discoveredLakes];
+    if (!searchQuery) return combined;
+    return combined.filter(l => 
       l.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allRegistryLakes, discoveredLakes, searchQuery]);
@@ -146,7 +151,7 @@ const App: React.FC = () => {
   const tsiScore = useMemo(() => selectedLake ? calculateTSI(selectedLake.lastSecchiDiskReading) : null, [selectedLake]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-200">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-200 font-inter">
       <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 shrink-0">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg"><Icons.Droplet /></div>
@@ -187,13 +192,13 @@ const App: React.FC = () => {
 
           <div className="space-y-3 pt-4 border-t border-slate-800/50">
             <div className="flex justify-between items-center px-4">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Registry Discovery</h3>
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Registry & Discovery</h3>
               {discoveredLakes.length > 0 && (
                 <button 
                   onClick={() => {setDiscoveredLakes([]); sessionStorage.removeItem(SESSION_KEY);}}
                   className="text-[8px] font-black text-rose-500 uppercase hover:underline"
                 >
-                  Clear
+                  Clear Discovery
                 </button>
               )}
             </div>
@@ -225,7 +230,7 @@ const App: React.FC = () => {
             <input 
               value={searchQuery}
               onChange={handleSearchInput}
-              placeholder="Search registry or audit new basin..." 
+              placeholder="Filter Discovery or Search New Basin..." 
               className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-white focus:ring-2 focus:ring-blue-600 outline-none transition-all" 
             />
           </div>
@@ -269,7 +274,13 @@ const App: React.FC = () => {
               {selectedLake.flowCamRecent && <FlowCamAnalysis data={selectedLake.flowCamRecent} />}
             </div>
           ) : view === 'map' ? (
-             <BiosecurityMapView lakes={[...allRegistryLakes, ...discoveredLakes]} onSelectLake={handleLakeSelection} onClose={() => setView('dashboard')} searchRadius={50} onRadiusChange={() => {}} />
+             <BiosecurityMapView 
+               lakes={[...allRegistryLakes, ...discoveredLakes]} 
+               onSelectLake={handleLakeSelection} 
+               onClose={() => setView('dashboard')} 
+               searchRadius={searchRadius} 
+               onRadiusChange={setSearchRadius} 
+             />
           ) : view === 'cluster' ? (
              <ClusterAnalysisView lakes={[...allRegistryLakes, ...discoveredLakes]} onSelectLake={handleLakeSelection} onClose={() => setView('dashboard')} />
           ) : view === 'compare' ? (

@@ -5,21 +5,21 @@ interface FlowCamAnalysisProps {
   data: FlowCamData;
 }
 
-const MAX_PARTICLES = 150;
+const MAX_PARTICLES = 200;
 
 /**
  * Scientific Classification Logic based on FlowCam Morphology and Lake-Specific Taxa
+ * Ensures particle types are weighted by the lake's unique distribution profile.
  */
 const classifyFlowCamParticle = (p: Partial<FlowCamParticle>, dist: FlowCamData['taxaDistribution']): FlowCamParticle['type'] => {
   if (!p.esd || !p.aspectRatio || !p.transparency) return 'Detritus';
   
-  // Use probability based on the lake's actual distribution
   const total = dist.cyanobacteria + dist.diatoms + dist.greenAlgae + dist.other;
   const rand = Math.random() * total;
 
   if (rand < dist.cyanobacteria) return 'Cyanobacteria';
   if (rand < dist.cyanobacteria + dist.diatoms) return 'Diatom';
-  if (rand < dist.cyanobacteria + dist.diatoms + dist.greenAlgae) return 'Zooplankton'; // Simplified as representative green algae/plankton
+  if (rand < dist.cyanobacteria + dist.diatoms + dist.greenAlgae) return 'Zooplankton';
   
   return 'Detritus';
 };
@@ -29,13 +29,12 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
   const [particles, setParticles] = useState<FlowCamParticle[]>([]);
   const requestRef = useRef<number>();
 
-  // Reset particles when lake data changes to ensure immediate sync
+  // RESET LOGIC: When data (lake) changes, clear the buffer to show new profile immediately
   useEffect(() => {
     setParticles([]);
-  }, [data]);
+  }, [data.concentration, data.taxaDistribution]);
 
   const createParticle = (canvasWidth: number, canvasHeight: number): FlowCamParticle => {
-    // Generate raw instrument metrics
     const esd = 10 + Math.random() * 80;
     const aspectRatio = 0.1 + Math.random() * 0.9;
     const transparency = 0.2 + Math.random() * 0.7;
@@ -43,7 +42,6 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
     const width = esd * aspectRatio;
     
     const partial: Partial<FlowCamParticle> = { esd, aspectRatio, transparency };
-    // Pass taxaDistribution for lake-specific classification probability
     const type = classifyFlowCamParticle(partial, data.taxaDistribution);
 
     return {
@@ -55,22 +53,24 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
       aspectRatio,
       transparency,
       type,
-      x: -50, // Start off-screen left
+      x: -50,
       y: Math.random() * canvasHeight,
-      velocity: 0.5 + Math.random() * 1.5
+      velocity: 0.8 + Math.random() * 2.5 // Slightly faster for modern feel
     };
   };
 
   const animate = () => {
     setParticles((prevParticles) => {
+      // 1. Update positions and filter out-of-bounds
       const updated = prevParticles
         .map(p => ({ ...p, x: p.x + p.velocity }))
         .filter(p => p.x < (canvasRef.current?.width || 2000));
 
-      // Add new particles based on concentration (probabilistic)
-      // data.concentration directly controls spawn frequency
-      if (updated.length < MAX_PARTICLES && Math.random() < (data.concentration / 400)) {
-        updated.push(createParticle(canvasRef.current?.width || 800, canvasRef.current?.height || 400));
+      // 2. Probabilistic spawning based on lake concentration
+      // Logic: Higher concentration = higher chance to spawn per frame
+      const spawnChance = data.concentration / 400; 
+      if (updated.length < MAX_PARTICLES && Math.random() < spawnChance) {
+        updated.push(createParticle(canvasRef.current?.width || 800, canvasRef.current?.height || 200));
       }
 
       return updated;
@@ -85,6 +85,7 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
     };
   }, [data.concentration, data.taxaDistribution]);
 
+  // DRAWING LOGIC: Runs on every particle state change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -93,8 +94,8 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Grid Blueprint Background
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.05)';
+    // Blue-print Grid
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
     ctx.lineWidth = 1;
     for (let i = 0; i < canvas.width; i += 40) {
       ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
@@ -106,20 +107,19 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
     particles.forEach(p => {
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.rotate(Math.atan2(p.velocity, 0));
 
-      // Style based on classification
-      let color = 'rgba(148, 163, 184, 0.3)'; // Default Detritus
-      if (p.type === 'Diatom') color = `rgba(16, 185, 129, ${1 - p.transparency})`;
-      if (p.type === 'Cyanobacteria') color = `rgba(244, 63, 94, ${1 - p.transparency})`;
-      if (p.type === 'Zooplankton') color = `rgba(59, 130, 246, ${1 - p.transparency})`;
+      // Color Palette Mapped to Morphology
+      let color = 'rgba(148, 163, 184, 0.35)'; // Detritus (Grey)
+      if (p.type === 'Diatom') color = `rgba(16, 185, 129, ${1.2 - p.transparency})`; // Green
+      if (p.type === 'Cyanobacteria') color = `rgba(244, 63, 94, ${1.2 - p.transparency})`; // Red/Warning
+      if (p.type === 'Zooplankton') color = `rgba(59, 130, 246, ${1.2 - p.transparency})`; // Blue
 
       ctx.fillStyle = color;
       ctx.strokeStyle = color.replace(/[\d\.]+\)$/g, '0.8)');
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
 
-      // Draw morphological shape
-      const drawSize = p.esd / 4;
+      const drawSize = p.esd / 5;
+      
       if (p.type === 'Diatom') {
         ctx.strokeRect(-drawSize * 2, -drawSize / 2, drawSize * 4, drawSize);
         ctx.fillRect(-drawSize * 2, -drawSize / 2, drawSize * 4, drawSize);
@@ -138,9 +138,9 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
         ctx.stroke();
       } else {
         ctx.beginPath();
-        for(let k=0; k<5; k++) {
-          const r = drawSize * (0.5 + Math.random() * 0.5);
-          const a = (Math.PI * 2 / 5) * k;
+        for(let k=0; k<4; k++) {
+          const r = drawSize * (0.4 + Math.random() * 0.4);
+          const a = (Math.PI * 2 / 4) * k;
           ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
         }
         ctx.closePath();
@@ -152,7 +152,7 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
   }, [particles]);
 
   return (
-    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 lg:p-12 overflow-hidden relative">
+    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 lg:p-12 overflow-hidden relative group">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div className="space-y-8 z-10">
           <div>
@@ -171,13 +171,13 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
             </div>
             <div className="mt-4 flex items-center gap-3">
                <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Sampled: {data.particleCount} cells</span>
+                  <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Sampled: {data.particleCount.toLocaleString()} cells</span>
                </div>
                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">{data.samplingDate}</div>
             </div>
           </div>
 
-          <div className="h-48 w-full bg-slate-950/50 rounded-3xl border border-slate-800/50 relative overflow-hidden group">
+          <div className="h-48 w-full bg-slate-950/50 rounded-3xl border border-slate-800/50 relative overflow-hidden">
              <canvas 
                ref={canvasRef} 
                width={800} 

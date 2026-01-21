@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { LakeData } from '../types';
-import ThermalProfileChart from './ThermalProfileChart';
 
 interface ComparisonViewProps {
   lakes: LakeData[];
@@ -83,7 +82,7 @@ const ComparisonView: React.FC<ComparisonViewProps> = ({ lakes, onClose }) => {
                 </div>
               </div>
 
-              <div className="h-[400px] w-full">
+              <div className="h-[450px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" opacity={0.3} />
@@ -110,20 +109,6 @@ const ComparisonView: React.FC<ComparisonViewProps> = ({ lakes, onClose }) => {
                 </ResponsiveContainer>
               </div>
             </div>
-
-            {lakes.length >= 2 && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Stratification Side-by-Side</h3>
-                  <div className="h-px flex-1 bg-slate-800" />
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {lakes.slice(0, 2).map(lake => (
-                    <ThermalProfileChart key={lake.id} lake={lake} />
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {lakes.map(lake => (
