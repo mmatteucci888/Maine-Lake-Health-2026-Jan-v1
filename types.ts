@@ -1,7 +1,21 @@
+export interface FlowCamParticle {
+  id: string;
+  esd: number; // Equivalent Spherical Diameter (µm)
+  area: number; // µm²
+  length: number; // µm
+  width: number; // µm
+  aspectRatio: number; // width/length
+  transparency: number; // 0.0 (opaque) to 1.0 (clear)
+  velocity: number;
+  x: number;
+  y: number;
+  type: 'Diatom' | 'Cyanobacteria' | 'Zooplankton' | 'Detritus';
+}
 
 export interface FlowCamData {
   totalBiovolume: number; // um3/mL
   particleCount: number;
+  concentration: number; // particles/mL
   taxaDistribution: {
     cyanobacteria: number; // percentage
     diatoms: number;
@@ -13,19 +27,14 @@ export interface FlowCamData {
 }
 
 export interface EcologicalMetrics {
-  // Watershed Vulnerability
-  imperviousSurface: number; // percentage
-  flushingRate: number; // times per year
-  catchmentRatio: number; // watershed size vs lake size
-
-  // Anoxia & Deep Water Health
-  anoxiaDepth: number; // meters
-  hodRate: number; // Hypolimnetic Oxygen Demand mg/L/day
+  imperviousSurface: number;
+  flushingRate: number;
+  catchmentRatio: number;
+  anoxiaDepth: number;
+  hodRate: number;
   internalLoadingRisk: 'Low' | 'Moderate' | 'High';
-
-  // Littoral & Habitat
-  shorelineNaturalization: number; // percentage of natural buffer
-  macrophyteDiversity: number; // 1-10 scale
+  shorelineNaturalization: number;
+  macrophyteDiversity: number;
   benthicHealth: 'Optimal' | 'Degraded' | 'Critical';
 }
 
@@ -36,29 +45,19 @@ export interface LakeData {
   zipCode: string;
   coordinates: { lat: number; lng: number };
   waterQuality: 'Excellent' | 'Good' | 'Fair' | 'Poor';
-  lastSecchiDiskReading: number; // in meters
-  phosphorusLevel: number; // µg/L (ppb)
-  chlorophyllLevel: number; // µg/L (ppb)
+  lastSecchiDiskReading: number;
+  phosphorusLevel: number;
+  chlorophyllLevel: number;
   invasiveSpeciesStatus: 'None detected' | 'Detected' | 'Under Management';
   lastUpdated: string;
+  maxDepth: number; // Maximum depth in meters
   historicalData?: Array<{
     year: number | string;
     secchi: number;
-    phosphorus: number; // µg/L (ppb)
+    phosphorus: number;
   }>;
   flowCamRecent?: FlowCamData;
   advancedMetrics?: EcologicalMetrics;
-  predictiveInsights?: {
-    algalBloomRisk: 'Low' | 'Moderate' | 'High';
-    thermalStability: number; 
-    watershedConnectivity: number; 
-    narrative: string;
-  };
-}
-
-export interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
 }
 
 export interface GroundingSource {

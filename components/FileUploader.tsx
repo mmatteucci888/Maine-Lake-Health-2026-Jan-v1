@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { LakeData } from '../types';
@@ -35,6 +36,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onDataLoaded }) => {
           const secchi = parseFloat(row.Secchi || row.Clarity || 5.0);
           const phos = parseFloat(row.Phosphorus || row.Phos || 10.0);
 
+          // Fix: Added missing required 'maxDepth' property to satisfy LakeData interface
           if (!lakeMap[lakeName]) {
             lakeMap[lakeName] = {
               id: `upload-${Date.now()}-${index}`,
@@ -51,6 +53,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onDataLoaded }) => {
               chlorophyllLevel: parseFloat(row.Chlorophyll || 2.0),
               invasiveSpeciesStatus: (row.Invasive || 'None detected') as any,
               lastUpdated: String(year),
+              maxDepth: parseFloat(row.MaxDepth || 10.0),
               historicalData: []
             };
           }
