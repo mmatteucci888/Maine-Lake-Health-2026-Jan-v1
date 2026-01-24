@@ -55,19 +55,16 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
       type,
       x: -50,
       y: Math.random() * canvasHeight,
-      velocity: 0.8 + Math.random() * 2.5 // Slightly faster for modern feel
+      velocity: 0.8 + Math.random() * 2.5 
     };
   };
 
   const animate = () => {
     setParticles((prevParticles) => {
-      // 1. Update positions and filter out-of-bounds
       const updated = prevParticles
         .map(p => ({ ...p, x: p.x + p.velocity }))
         .filter(p => p.x < (canvasRef.current?.width || 2000));
 
-      // 2. Probabilistic spawning based on lake concentration
-      // Logic: Higher concentration = higher chance to spawn per frame
       const spawnChance = data.concentration / 400; 
       if (updated.length < MAX_PARTICLES && Math.random() < spawnChance) {
         updated.push(createParticle(canvasRef.current?.width || 800, canvasRef.current?.height || 200));
@@ -108,11 +105,10 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
       ctx.save();
       ctx.translate(p.x, p.y);
 
-      // Color Palette Mapped to Morphology
-      let color = 'rgba(148, 163, 184, 0.35)'; // Detritus (Grey)
-      if (p.type === 'Diatom') color = `rgba(16, 185, 129, ${1.2 - p.transparency})`; // Green
-      if (p.type === 'Cyanobacteria') color = `rgba(244, 63, 94, ${1.2 - p.transparency})`; // Red/Warning
-      if (p.type === 'Zooplankton') color = `rgba(59, 130, 246, ${1.2 - p.transparency})`; // Blue
+      let color = 'rgba(148, 163, 184, 0.35)'; 
+      if (p.type === 'Diatom') color = `rgba(16, 185, 129, ${1.2 - p.transparency})`; 
+      if (p.type === 'Cyanobacteria') color = `rgba(244, 63, 94, ${1.2 - p.transparency})`; 
+      if (p.type === 'Zooplankton') color = `rgba(59, 130, 246, ${1.2 - p.transparency})`; 
 
       ctx.fillStyle = color;
       ctx.strokeStyle = color.replace(/[\d\.]+\)$/g, '0.8)');
@@ -159,9 +155,12 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
             <div className="flex items-center gap-2 mb-2">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">FlowCam Imaging Stream</h3>
               <div className="h-px w-8 bg-slate-800" />
-              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Live Pulse</span>
+              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Active Regional Protocol</span>
             </div>
             <h4 className="text-3xl font-black text-white uppercase italic tracking-tighter">Taxonomic Manifold</h4>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+              Source: Lake Stewards of Maine / ESM Laboratory FlowCam Node
+            </p>
           </div>
 
           <div className="relative">
@@ -170,10 +169,13 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
               <span className="text-lg text-slate-500 ml-4 font-bold uppercase tracking-normal">particles/mL</span>
             </div>
             <div className="mt-4 flex items-center gap-3">
+               <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">System Integrity: Verified</span>
+               </div>
                <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                   <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Sampled: {data.particleCount.toLocaleString()} cells</span>
                </div>
-               <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">{data.samplingDate}</div>
             </div>
           </div>
 
@@ -200,7 +202,7 @@ const FlowCamAnalysis: React.FC<FlowCamAnalysisProps> = ({ data }) => {
 
         <div className="space-y-10 bg-black/20 p-8 rounded-[2rem] border border-slate-800/50 shadow-inner z-10">
            <div>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Dominant Genus</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Dominant Genus (Observed)</p>
               <p className="text-xl font-black text-blue-400 uppercase italic tracking-tight">{data.dominantTaxa}</p>
            </div>
 

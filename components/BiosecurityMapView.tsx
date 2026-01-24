@@ -61,10 +61,9 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
     }).addTo(mapInstance.current);
 
     return () => {
-      // Fix: Cast mapInstance.current to any to ensure 'remove' is accessible and avoid 'unknown' inference issues reported at line 89
-      const currentMap = mapInstance.current as any;
-      if (currentMap) {
-        currentMap.remove();
+      // Fix: Cast the map instance to any during cleanup to ensure 'remove' method is accessible
+      if (mapInstance.current) {
+        (mapInstance.current as any).remove();
         mapInstance.current = null;
       }
     };
@@ -87,7 +86,8 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
     if (!mapInstance.current) return;
 
     // Remove old markers to refresh view state
-    Object.values(markersRef.current).forEach(m => m.remove());
+    // Fix: Cast Object.values to any[] to avoid 'unknown' type error for m.remove() (Line 89 reported error)
+    (Object.values(markersRef.current) as any[]).forEach(m => m.remove());
     markersRef.current = {};
 
     lakes.forEach(lake => {

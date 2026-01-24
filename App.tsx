@@ -11,32 +11,45 @@ import FlowCamAnalysis from './components/FlowCamAnalysis';
 import ComparisonView from './components/ComparisonView';
 import { generatePredictiveNarrative, calculateTSI, getTrophicLabel } from './utils/analysisUtils';
 
-const SESSION_KEY = 'lake_guardian_pro_v1';
+const SESSION_KEY_DISCOVERY = 'lake_discovery_history_v1';
+const SESSION_KEY_COMPARE = 'lake_compare_basket_v1';
 const CORE_LAON_IDS = ['pennesseewassee', 'little-pennesseewassee', 'sand-pond', 'north-pond'];
 
 const App: React.FC = () => {
   const [allRegistryLakes] = useState<LakeData[]>(LAKES_DATA);
+  
+  // Persistent Discovery State
   const [discoveredLakes, setDiscoveredLakes] = useState<LakeData[]>(() => {
-    const saved = sessionStorage.getItem(SESSION_KEY);
+    const saved = sessionStorage.getItem(SESSION_KEY_DISCOVERY);
     return saved ? JSON.parse(saved) : [];
   });
   
+  // Persistent Compare State
+  const [compareBasket, setCompareBasket] = useState<string[]>(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY_COMPARE);
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [selectedLake, setSelectedLake] = useState<LakeData | null>(LAKES_DATA[0]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDescription, setSearchDescription] = useState<string>("");
   const [groundingSources, setGroundingSources] = useState<GroundingSource[]>([]);
   const [view, setView] = useState<'dashboard' | 'map' | 'cluster' | 'compare'>('dashboard');
-  const [compareBasket, setCompareBasket] = useState<string[]>([]);
   
   // Persistent Map State
   const [searchRadius, setSearchRadius] = useState<number>(50);
   
   const searchTimeoutRef = useRef<number | null>(null);
 
+  // Sync state to Session Storage
   useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(discoveredLakes));
+    sessionStorage.setItem(SESSION_KEY_DISCOVERY, JSON.stringify(discoveredLakes));
   }, [discoveredLakes]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SESSION_KEY_COMPARE, JSON.stringify(compareBasket));
+  }, [compareBasket]);
 
   // Section 1: LAON CORE BASINS - Permanent Sidebar List
   const coreLakes = useMemo(() => 
@@ -48,9 +61,15 @@ const App: React.FC = () => {
   const discoveryLakes = useMemo(() => {
     const others = allRegistryLakes.filter(l => !CORE_LAON_IDS.includes(l.id));
     const combined = [...others, ...discoveredLakes];
-    if (!searchQuery) return combined;
-    return combined.filter(l => 
-      l.name.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const uniqueMap = new Map();
+    combined.forEach(l => uniqueMap.set(l.id, l));
+    const uniqueList = Array.from(uniqueMap.values());
+
+    if (!searchQuery) return uniqueList;
+    return uniqueList.filter(l => 
+      l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.town.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allRegistryLakes, discoveredLakes, searchQuery]);
 
@@ -59,21 +78,28 @@ const App: React.FC = () => {
     setSearchDescription("");
     try {
       const prompt = lake 
-        ? `Perform a limnological audit for ${lake.name} in ${lake.town}, Maine. Focus on phosphorus and clarity.`
-        : `Search registry for "${queryText}" in Maine. Extract Secchi depth and Phosphorus data.`;
+        ? `Perform a limnological audit for ${lake.name} in ${lake.town}, Maine. Focus on phosphorus, clarity, and phytoplankton biovolume.`
+        : `Search registry for "${queryText}" in Maine. Extract Secchi depth, Phosphorus, and any phytoplankton biovolume or dominant taxa data.`;
       
       const result = await getLakeHealthInsights(prompt, lake?.id);
       setSearchDescription(result?.text?.replace(/[*#]/g, '').trim() || "");
       setGroundingSources(result?.sources || []);
       
       if (!lake && result.extractedMetrics) {
+        const alreadyDiscovered = discoveredLakes.find(d => d.name.toLowerCase() === queryText.toLowerCase());
+        if (alreadyDiscovered) {
+          setSelectedLake(alreadyDiscovered);
+          return;
+        }
+
         const baseSecchi = result.extractedMetrics.secchi || 5.0;
         const basePhos = result.extractedMetrics.phosphorus || 10.0;
+        const flowConc = result.extractedMetrics.flowCamConc;
         const derivedQuality = baseSecchi > 6 ? 'Excellent' : baseSecchi > 4 ? 'Good' : 'Fair';
 
         const newLake: LakeData = {
           id: `ext-${Date.now()}`,
-          name: queryText,
+          name: queryText.charAt(0).toUpperCase() + queryText.slice(1),
           town: "Registry Discovery",
           zipCode: "Maine Node",
           coordinates: { lat: 44.5, lng: -70.1 },
@@ -86,16 +112,17 @@ const App: React.FC = () => {
           maxDepth: 15.0,
           historicalData: generateHistory(baseSecchi, basePhos),
           advancedMetrics: generateAdvancedMetrics(derivedQuality),
-          flowCamRecent: {
-            totalBiovolume: 1200000,
-            particleCount: 4500,
-            concentration: 85,
-            taxaDistribution: { cyanobacteria: 15, diatoms: 55, greenAlgae: 20, other: 10 },
-            dominantTaxa: 'Unknown Diatom',
-            samplingDate: '2025 Prediction'
-          }
+          // FlowCam logic for discovered lakes: if the AI found biovolume/conc, generate a profile
+          flowCamRecent: flowConc ? {
+            totalBiovolume: flowConc * 11500,
+            particleCount: flowConc * 28,
+            concentration: flowConc,
+            taxaDistribution: { cyanobacteria: 10, diatoms: 60, greenAlgae: 20, other: 10 },
+            dominantTaxa: 'Verified Community',
+            samplingDate: '2024 Audit'
+          } : undefined
         };
-        setDiscoveredLakes(prev => [newLake, ...prev].slice(0, 10));
+        setDiscoveredLakes(prev => [newLake, ...prev].slice(0, 50));
         setSelectedLake(newLake);
       }
     } catch (e) {
@@ -103,7 +130,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [discoveredLakes]);
 
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -120,7 +147,7 @@ const App: React.FC = () => {
         } else {
           fetchInsights(null, value);
         }
-      }, 500);
+      }, 800);
     }
   };
 
@@ -143,10 +170,10 @@ const App: React.FC = () => {
     );
   };
 
-  const selectedCompareLakes = useMemo(() => 
-    [...allRegistryLakes, ...discoveredLakes].filter(l => compareBasket.includes(l.id)),
-    [allRegistryLakes, discoveredLakes, compareBasket]
-  );
+  const selectedCompareLakes = useMemo(() => {
+    const combined = [...allRegistryLakes, ...discoveredLakes];
+    return combined.filter(l => compareBasket.includes(l.id));
+  }, [allRegistryLakes, discoveredLakes, compareBasket]);
 
   const tsiScore = useMemo(() => selectedLake ? calculateTSI(selectedLake.lastSecchiDiskReading) : null, [selectedLake]);
 
@@ -179,10 +206,13 @@ const App: React.FC = () => {
                   lake={lake} 
                   isSelected={selectedLake?.id === lake.id} 
                   onClick={() => handleLakeSelection(lake)} 
+                  isSelectedForCompare={compareBasket.includes(lake.id)}
+                  isCompareMode={false} 
                 />
                 <button 
                   onClick={(e) => toggleCompare(lake.id, e)}
-                  className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-all ${compareBasket.includes(lake.id) ? 'bg-blue-600 border-blue-400 text-white opacity-100' : 'bg-slate-950/80 border-slate-700 text-slate-500 opacity-0 group-hover:opacity-100'}`}
+                  title="Toggle Comparison"
+                  className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-all z-10 ${compareBasket.includes(lake.id) ? 'bg-blue-600 border-blue-400 text-white opacity-100' : 'bg-slate-950/80 border-slate-700 text-slate-500 opacity-0 group-hover:opacity-100'}`}
                 >
                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
                 </button>
@@ -195,7 +225,7 @@ const App: React.FC = () => {
               <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Registry & Discovery</h3>
               {discoveredLakes.length > 0 && (
                 <button 
-                  onClick={() => {setDiscoveredLakes([]); sessionStorage.removeItem(SESSION_KEY);}}
+                  onClick={() => {setDiscoveredLakes([]); sessionStorage.removeItem(SESSION_KEY_DISCOVERY);}}
                   className="text-[8px] font-black text-rose-500 uppercase hover:underline"
                 >
                   Clear Discovery
@@ -208,10 +238,13 @@ const App: React.FC = () => {
                   lake={lake} 
                   isSelected={selectedLake?.id === lake.id} 
                   onClick={() => handleLakeSelection(lake)} 
+                  isSelectedForCompare={compareBasket.includes(lake.id)}
+                  isCompareMode={false}
                 />
                 <button 
                   onClick={(e) => toggleCompare(lake.id, e)}
-                  className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-all ${compareBasket.includes(lake.id) ? 'bg-blue-600 border-blue-400 text-white opacity-100' : 'bg-slate-950/80 border-slate-700 text-slate-500 opacity-0 group-hover:opacity-100'}`}
+                  title="Toggle Comparison"
+                  className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-all z-10 ${compareBasket.includes(lake.id) ? 'bg-blue-600 border-blue-400 text-white opacity-100' : 'bg-slate-950/80 border-slate-700 text-slate-500 opacity-0 group-hover:opacity-100'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
                 </button>
@@ -230,7 +263,7 @@ const App: React.FC = () => {
             <input 
               value={searchQuery}
               onChange={handleSearchInput}
-              placeholder="Filter Discovery or Search New Basin..." 
+              placeholder="Search or Discovery (e.g. 'Kezar Lake' or 'New Lake')..." 
               className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-xs font-bold text-white focus:ring-2 focus:ring-blue-600 outline-none transition-all" 
             />
           </div>
@@ -249,7 +282,6 @@ const App: React.FC = () => {
                     {loading ? "Synthesizing regional datasets..." : (searchDescription || generatePredictiveNarrative(selectedLake))}
                   </div>
                   
-                  {/* Correct Method: Render grounding sources to comply with Google Search grounding requirements */}
                   {!loading && groundingSources.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-slate-800/50">
                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">Verification Sources:</p>

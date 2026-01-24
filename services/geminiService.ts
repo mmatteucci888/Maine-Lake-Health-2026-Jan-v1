@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 const CACHE_KEY_PREFIX = "lake_audit_pro_v6_";
@@ -49,12 +48,13 @@ export const getLakeHealthInsights = async (
   Your task is to provide objective, site-specific ecological health audits.
   
   MANDATORY GUIDELINES:
-  1. Use ONLY third-person, clinical, and authoritative language. Do NOT use "I", "me", "my", "we", or "our".
-  2. For any lake requested (e.g., Moosehead Lake, Richardson Lake), retrieve specific water quality metrics including Secchi Disk transparency (meters) and Total Phosphorus (ppb).
-  3. Synthesize the findings into a professional report.
-  4. Ensure the output begins with the full, official name of the water body.
+  1. Use ONLY third-person, clinical, and authoritative language.
+  2. For any lake requested, retrieve specific water quality metrics: Secchi Disk (m), Total Phosphorus (ppb), AND Phytoplankton imaging data (FlowCam biovolume, concentration, dominant taxa).
+  3. Search specifically for FlowCam reports from the Lake Stewards of Maine or Maine DEP.
+  4. Synthesize the findings into a professional report.
+  5. If phytoplankton/FlowCam data is available, mention biovolume or concentration (particles/mL) explicitly.
   
-  Format: Professional scientific narrative. Do not use JSON. Cite URLs from MDEP, Lake Stewards of Maine, or relevant NGOs.`;
+  Format: Professional scientific narrative. Cite URLs from MDEP, Lake Stewards of Maine, or LSM ESM Lab.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -73,16 +73,18 @@ export const getLakeHealthInsights = async (
 
     const text = response.text || "";
     
-    // Improved extraction logic
+    // Improved extraction logic for classic metrics + FlowCam
     const phosMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:ppb|ug\/L|phosphorus)/i);
     const secchiMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:meters|m|clarity|secchi)/i);
+    const flowCamConcMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:particles\/mL|concentration|biovolume)/i);
 
     const result = {
       text,
       sources: sources.slice(0, 5),
       extractedMetrics: {
         phosphorus: phosMatch ? parseFloat(phosMatch[1]) : null,
-        secchi: secchiMatch ? parseFloat(secchiMatch[1]) : null
+        secchi: secchiMatch ? parseFloat(secchiMatch[1]) : null,
+        flowCamConc: flowCamConcMatch ? parseFloat(flowCamConcMatch[1]) : null
       },
       timestamp: Date.now()
     };

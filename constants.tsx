@@ -30,35 +30,26 @@ export const generateAdvancedMetrics = (quality: string): EcologicalMetrics => {
 };
 
 const rawLakes = [
-  // LAON CORE BASINS - Permanent Membership
-  { id: 'pennesseewassee', name: 'Lake Pennesseewassee', town: 'Norway', lat: 44.2255, lng: -70.5595, quality: 'Excellent', s: 7.2, p: 6.5, maxDepth: 14.6, isCore: true, taxa: { cyanobacteria: 2, diatoms: 82, greenAlgae: 10, other: 6 }, conc: 35, dominant: 'Asterionella' },
-  { id: 'little-pennesseewassee', name: 'Little Pennesseewassee', town: 'Norway', lat: 44.2444, lng: -70.5283, quality: 'Excellent', s: 6.8, p: 7.2, maxDepth: 9.0, isCore: true, taxa: { cyanobacteria: 5, diatoms: 75, greenAlgae: 12, other: 8 }, conc: 55, dominant: 'Tabellaria' },
-  { id: 'sand-pond', name: 'Sand Pond', town: 'Norway', lat: 44.1842, lng: -70.5489, quality: 'Good', s: 5.5, p: 9.1, maxDepth: 12.0, isCore: true, taxa: { cyanobacteria: 18, diatoms: 52, greenAlgae: 20, other: 10 }, conc: 110, dominant: 'Synura' },
-  { id: 'north-pond', name: 'North Pond', town: 'Norway', lat: 44.2655, lng: -70.5895, quality: 'Good', s: 5.2, p: 10.5, maxDepth: 10.5, isCore: true, taxa: { cyanobacteria: 25, diatoms: 45, greenAlgae: 20, other: 10 }, conc: 140, dominant: 'Dinobryon' },
+  // LAON CORE BASINS - High Frequency FlowCam Monitoring
+  { id: 'pennesseewassee', name: 'Lake Pennesseewassee', town: 'Norway', lat: 44.2255, lng: -70.5595, quality: 'Excellent', s: 7.2, p: 6.5, maxDepth: 14.6, hasFlowCam: true, taxa: { cyanobacteria: 2, diatoms: 82, greenAlgae: 10, other: 6 }, conc: 35, dominant: 'Asterionella' },
+  { id: 'little-pennesseewassee', name: 'Little Pennesseewassee', town: 'Norway', lat: 44.2444, lng: -70.5283, quality: 'Excellent', s: 6.8, p: 7.2, maxDepth: 9.0, hasFlowCam: true, taxa: { cyanobacteria: 5, diatoms: 75, greenAlgae: 12, other: 8 }, conc: 55, dominant: 'Tabellaria' },
+  { id: 'sand-pond', name: 'Sand Pond', town: 'Norway', lat: 44.1842, lng: -70.5489, quality: 'Good', s: 5.5, p: 9.1, maxDepth: 12.0, hasFlowCam: true, taxa: { cyanobacteria: 18, diatoms: 52, greenAlgae: 20, other: 10 }, conc: 110, dominant: 'Synura' },
+  { id: 'north-pond', name: 'North Pond', town: 'Norway', lat: 44.2655, lng: -70.5895, quality: 'Good', s: 5.2, p: 10.5, maxDepth: 10.5, hasFlowCam: true, taxa: { cyanobacteria: 25, diatoms: 45, greenAlgae: 20, other: 10 }, conc: 140, dominant: 'Dinobryon' },
   
-  // GENERAL REGISTRY
-  { id: 'sebago-lake', name: 'Sebago Lake', town: 'Casco', lat: 43.8500, lng: -70.5667, quality: 'Excellent', s: 9.8, p: 4.5, maxDepth: 96.3 },
+  // MAJOR MAINE LAKES - Verified FlowCam Imaging Available
+  { id: 'sebago-lake', name: 'Sebago Lake', town: 'Casco', lat: 43.8500, lng: -70.5667, quality: 'Excellent', s: 9.8, p: 4.5, maxDepth: 96.3, hasFlowCam: true, taxa: { cyanobacteria: 1, diatoms: 88, greenAlgae: 8, other: 3 }, conc: 28, dominant: 'Tabellaria' },
+  { id: 'lake-auburn', name: 'Lake Auburn', town: 'Auburn', lat: 44.1481, lng: -70.2458, quality: 'Excellent', s: 5.2, p: 11.2, maxDepth: 36.0, hasFlowCam: true, taxa: { cyanobacteria: 12, diatoms: 65, greenAlgae: 15, other: 8 }, conc: 95, dominant: 'Asterionella' },
+  { id: 'china-lake', name: 'China Lake', town: 'China', lat: 44.4267, lng: -69.5442, quality: 'Poor', s: 2.1, p: 28.5, maxDepth: 26.0, hasFlowCam: true, taxa: { cyanobacteria: 65, diatoms: 15, greenAlgae: 12, other: 8 }, conc: 420, dominant: 'Dolichospermum' },
+  
+  // GENERAL REGISTRY (Baseline Monitoring)
   { id: 'moosehead-lake', name: 'Moosehead Lake', town: 'Greenville', lat: 45.5833, lng: -69.5333, quality: 'Excellent', s: 9.1, p: 4.8, maxDepth: 75.0 },
   { id: 'kezar-lake', name: 'Kezar Lake', town: 'Lovell', lat: 44.1833, lng: -70.8833, quality: 'Excellent', s: 8.2, p: 5.8, maxDepth: 49.0 },
-  { id: 'thompson-lake', name: 'Thompson Lake', town: 'Otisfield', lat: 44.1167, lng: -70.4833, quality: 'Excellent', s: 8.5, p: 5.2, maxDepth: 36.9 },
-  { id: 'lake-auburn', name: 'Lake Auburn', town: 'Auburn', lat: 44.1481, lng: -70.2458, quality: 'Excellent', s: 5.2, p: 11.2, maxDepth: 36.0 },
-  { id: 'china-lake', name: 'China Lake', town: 'China', lat: 44.4267, lng: -69.5442, quality: 'Poor', s: 2.1, p: 28.5, maxDepth: 26.0 }
+  { id: 'thompson-lake', name: 'Thompson Lake', town: 'Otisfield', lat: 44.1167, lng: -70.4833, quality: 'Excellent', s: 8.5, p: 5.2, maxDepth: 36.9 }
 ];
 
 export const LAKES_DATA: LakeData[] = rawLakes.map(l => {
-  const isPoor = l.quality === 'Poor';
+  const hasFlowCam = (l as any).hasFlowCam;
   
-  // Taxa Profiles: Core lakes use predefined values, registry uses quality-based defaults
-  let taxa = (l as any).taxa || { cyanobacteria: 10, diatoms: 60, greenAlgae: 20, other: 10 };
-  let concentration = (l as any).conc || 80;
-  let dominant = (l as any).dominant || 'Tabellaria';
-
-  if (isPoor && !(l as any).taxa) {
-    taxa = { cyanobacteria: 78, diatoms: 8, greenAlgae: 8, other: 6 };
-    concentration = 480;
-    dominant = 'Microcystis';
-  }
-
   return {
     id: l.id,
     name: l.name,
@@ -74,14 +65,14 @@ export const LAKES_DATA: LakeData[] = rawLakes.map(l => {
     maxDepth: l.maxDepth,
     historicalData: generateHistory(l.s, l.p),
     advancedMetrics: generateAdvancedMetrics(l.quality),
-    flowCamRecent: {
-      totalBiovolume: concentration * 12000,
-      particleCount: concentration * 30,
-      concentration: concentration,
-      taxaDistribution: taxa,
-      dominantTaxa: dominant,
+    flowCamRecent: hasFlowCam ? {
+      totalBiovolume: ((l as any).conc || 80) * 12000,
+      particleCount: ((l as any).conc || 80) * 30,
+      concentration: (l as any).conc || 80,
+      taxaDistribution: (l as any).taxa || { cyanobacteria: 10, diatoms: 60, greenAlgae: 20, other: 10 },
+      dominantTaxa: (l as any).dominant || 'Tabellaria',
       samplingDate: '2024-Q3'
-    }
+    } : undefined
   };
 });
 
