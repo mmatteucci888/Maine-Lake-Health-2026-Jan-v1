@@ -1,5 +1,4 @@
-
-# 🌊 Maine Lake Guardian PRO
+# 🌊 Maine Lake Guardian
 
 A high-performance dashboard for monitoring lake health within a 50-mile radius of Norway, Maine.
 

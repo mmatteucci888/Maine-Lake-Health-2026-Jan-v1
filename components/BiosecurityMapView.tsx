@@ -61,9 +61,10 @@ const BiosecurityMapView: React.FC<BiosecurityMapViewProps> = ({
     }).addTo(mapInstance.current);
 
     return () => {
-      if (mapInstance.current) {
-        // Fix for Error: Property 'remove' does not exist on type 'unknown'.
-        (mapInstance.current as any).remove();
+      // Fix: Cast mapInstance.current to any to ensure 'remove' is accessible and avoid 'unknown' inference issues reported at line 89
+      const currentMap = mapInstance.current as any;
+      if (currentMap) {
+        currentMap.remove();
         mapInstance.current = null;
       }
     };

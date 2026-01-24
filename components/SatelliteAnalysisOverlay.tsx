@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { LakeData } from '../types';
 
@@ -62,8 +61,10 @@ const SatelliteAnalysisOverlay: React.FC<SatelliteAnalysisOverlayProps> = ({
     }).addTo(mapInstance.current);
 
     return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
+      // Fix: cast to any during cleanup to avoid TypeScript 'unknown' inference issues during component unmount
+      const currentMap = mapInstance.current as any;
+      if (currentMap) {
+        currentMap.remove();
         mapInstance.current = null;
       }
     };

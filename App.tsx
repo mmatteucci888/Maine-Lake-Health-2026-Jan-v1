@@ -155,7 +155,7 @@ const App: React.FC = () => {
       <aside className="hidden lg:flex w-80 flex-col bg-slate-900/50 border-r border-slate-800 shrink-0">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg"><Icons.Droplet /></div>
-          <h1 className="text-sm font-black uppercase tracking-tighter italic">Lake Guardian PRO</h1>
+          <h1 className="text-sm font-black uppercase tracking-tighter italic">Maine Lake Guardian</h1>
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
@@ -248,6 +248,27 @@ const App: React.FC = () => {
                   <div className="text-lg font-medium text-slate-200 leading-relaxed whitespace-pre-wrap">
                     {loading ? "Synthesizing regional datasets..." : (searchDescription || generatePredictiveNarrative(selectedLake))}
                   </div>
+                  
+                  {/* Correct Method: Render grounding sources to comply with Google Search grounding requirements */}
+                  {!loading && groundingSources.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-slate-800/50">
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">Verification Sources:</p>
+                      <div className="flex flex-wrap gap-3">
+                        {groundingSources.map((source, idx) => (
+                          <a 
+                            key={idx} 
+                            href={source.uri} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/5 px-2 py-1 rounded border border-blue-500/10 flex items-center gap-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            {source.title || 'Source'}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
